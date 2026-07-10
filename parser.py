@@ -11,6 +11,7 @@ Features:
     - Assignments
     - Expressions
     - Function calls
+    - Array indexing
     - For loops
     - If statements
     - Matrices
@@ -35,6 +36,9 @@ from abstract_syntax_tree import (
     UnaryOp,
     Call,
     Matrix,
+    Index,
+    Slice,
+    End,
 )
 
 
@@ -432,7 +436,95 @@ class Parser:
                 token
             )
 
-        return self.primary()
+        return self.postfix()
+
+    # ======================================================
+    # Postfix (indexing)
+    # ======================================================
+
+    def postfix(self):
+        """
+        Handle postfix operations: indexing and function calls.
+        MATLAB uses () for both, but we need to distinguish:
+        - func(args) -> function call
+        - A(i,j) -> array indexing
+        """
+        node = self.primary()
+
+        while True:
+            # Array indexing: A(i,j)
+            if self.check(TokenType.LPAREN):
+                self.advance()
+                indices = self.parse_indices()
+                self.expect(TokenType.RPAREN)
+                
+                node = self.make_node(
+                    Index(
+                        value=node,
+                        indices=indices
+                    )
+                )
+            else:
+                break
+
+        return node
+
+    def parse_indices(self):
+        """
+        Parse MATLAB indexing expressions: A(1,2), A(:,end), A(1:5), etc.
+        """
+        indices = []
+
+        while not self.check(TokenType.RPAREN):
+            # Colon (slice)
+            if self.check(TokenType.COLON):
+                self.advance()
+                # Start is empty
+                stop = None
+                step = None
+                
+                # Check for stop
+                if not self.check(TokenType.COMMA) and not self.check(TokenType.RPAREN):
+                    stop = self.expression()
+                
+                # Check for step
+                if self.check(TokenType.COLON):
+                    self.advance()
+                    if not self.check(TokenType.COMMA) and not self.check(TokenType.RPAREN):
+                        step = self.expression()
+                
+                indices.append(
+                    Slice(start=None, stop=stop, step=step)
+                )
+            else:
+                # Try to parse an expression
+                expr = self.expression()
+                
+                # Check if it's a slice (start:stop:step)
+                if self.check(TokenType.COLON):
+                    self.advance()
+                    stop = None
+                    step = None
+                    
+                    if not self.check(TokenType.COMMA) and not self.check(TokenType.RPAREN):
+                        stop = self.expression()
+                    
+                    if self.check(TokenType.COLON):
+                        self.advance()
+                        if not self.check(TokenType.COMMA) and not self.check(TokenType.RPAREN):
+                            step = self.expression()
+                    
+                    indices.append(
+                        Slice(start=expr, stop=stop, step=step)
+                    )
+                else:
+                    # Regular index
+                    indices.append(expr)
+            
+            if not self.match(TokenType.COMMA):
+                break
+
+        return indices
 
     # ======================================================
     # Primary Expressions
@@ -498,7 +590,7 @@ class Parser:
             )
 
         # -------------------------------
-        # Identifier / Call
+        # Identifier
         # -------------------------------
 
         if token.type == TokenType.IDENTIFIER:
@@ -509,28 +601,14 @@ class Parser:
                 token
             )
 
-            if self.match(TokenType.LPAREN):
-                args = []
-
-                while not self.check(TokenType.RPAREN):
-                    args.append(
-                        self.expression()
-                    )
-
-                    if not self.match(TokenType.COMMA):
-                        break
-
-                self.expect(
-                    TokenType.RPAREN
-                )
-
-                return self.make_node(
-                    Call(
-                        function=node,
-                        arguments=args
-                    ),
-                    token
-                )
+            # Check for function call
+            if self.check(TokenType.LPAREN):
+                # Peek ahead to distinguish function call from indexing
+                # If we see an identifier followed by (, it could be:
+                # 1. func(args) - function call
+                # 2. A(i) - array index
+                # The postfix() method will handle this after primary()
+                pass
 
             return node
 
