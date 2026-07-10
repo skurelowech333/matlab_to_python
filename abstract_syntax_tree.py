@@ -67,6 +67,16 @@ class ExpressionStatement(Node):
     expression: "Node" = None
 
 
+@dataclass
+class Break(Node):
+    pass
+
+
+@dataclass
+class Continue(Node):
+    pass
+
+
 # ==========================================================
 # Conversion Recovery
 # ==========================================================
@@ -75,11 +85,9 @@ class ExpressionStatement(Node):
 class FailedConversion(Node):
     """
     Represents MATLAB code that could not be translated.
-
     The translator will preserve it as comments.
 
     Example:
-
         # CONVERSION FAILED:
         # Unsupported syntax
         # ORIGINAL MATLAB:
@@ -93,7 +101,6 @@ class FailedConversion(Node):
 class RawMATLAB(Node):
     """
     Preserves original MATLAB source.
-
     Used when exact source preservation is required.
     """
     text: str = ""
@@ -145,13 +152,33 @@ class While(Node):
 
 
 @dataclass
-class Break(Node):
-    pass
+class Switch(Node):
+    expression: "Node" = None
+    cases: List["Case"] = field(
+        default_factory=list
+    )
+    default_body: List["Node"] = field(
+        default_factory=list
+    )
 
 
 @dataclass
-class Continue(Node):
-    pass
+class Case(Node):
+    value: "Node" = None
+    body: List["Node"] = field(
+        default_factory=list
+    )
+
+
+@dataclass
+class Try(Node):
+    body: List["Node"] = field(
+        default_factory=list
+    )
+    catch_body: List["Node"] = field(
+        default_factory=list
+    )
+    catch_var: str = ""
 
 
 # ==========================================================
@@ -239,7 +266,6 @@ class Matrix(Node):
     rows: List[List["Node"]] = field(
         default_factory=list
     )
-    # Optional future shape inference
     shape: Optional[tuple] = None
 
 
@@ -248,6 +274,16 @@ class CellArray(Node):
     rows: List[List["Node"]] = field(
         default_factory=list
     )
+
+
+@dataclass
+class Range(Node):
+    """
+    Represents MATLAB range expressions: start:step:stop
+    """
+    start: "Node" = None
+    step: Optional["Node"] = None
+    stop: "Node" = None
 
 
 # ==========================================================
