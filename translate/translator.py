@@ -393,6 +393,64 @@ class Translator:
             f"({left} {operator} {right})"
         )
 
+
+    # ======================================================
+    # Unary Operations
+    # ======================================================
+
+    def visit_UnaryOp(self, node):
+        """
+        Handle unary MATLAB operators.
+
+        Examples:
+            -5
+            -x
+            -(a+b)
+
+        MATLAB AST:
+            UnaryOp(
+                operator="-",
+                operand=Number(5)
+            )
+
+        Python:
+            -5
+        """
+
+        operand = self.visit(
+            node.operand
+        )
+
+        return (
+            f"{node.operator}{operand}"
+        )
+
+
+    def convert_operator(self, node):
+        op = node.operator
+        mapping = {
+            # element-wise
+            ".*": "*",
+            "./": "/",
+            ".^": "**",
+
+            # logical
+            "&&": "and",
+            "||": "or",
+            "~=": "!=",
+
+            # MATLAB matrix multiplication
+            "*": "@",
+
+            # power
+            "^": "**",
+        }
+
+        return mapping.get(
+            op,
+            op
+        )
+
     def convert_operator(self, node):
         op = node.operator
         mapping = {

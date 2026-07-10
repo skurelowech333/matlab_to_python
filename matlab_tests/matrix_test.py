@@ -6,7 +6,7 @@ def matrix_test(x):
     # Matrix multiply
     B = (A @ A)
     # Inverse
-    C = np.linalg.inv(A)
+    C = inv[A-1]
     y = (C @ x)
     
     return y

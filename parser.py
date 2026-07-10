@@ -425,17 +425,33 @@ class Parser:
         return left
 
     def unary(self):
-        if self.check(TokenType.MINUS):
-            token = self.advance()
 
+        if self.check(TokenType.MINUS):
+    
+            token = self.advance()
+    
             return self.make_node(
                 UnaryOp(
-                    operator=token.value,
+                    operator="-",
                     operand=self.unary()
                 ),
                 token
             )
-
+    
+    
+        if self.check(TokenType.PLUS):
+    
+            token = self.advance()
+    
+            return self.make_node(
+                UnaryOp(
+                    operator="+",
+                    operand=self.unary()
+                ),
+                token
+            )
+    
+    
         return self.postfix()
 
     # ======================================================
@@ -530,6 +546,9 @@ class Parser:
     # Primary Expressions
     # ======================================================
 
+    def matrix_element(self):
+        return self.binary_expression(8)
+    
     def primary(self):
         token = self.advance()
 
@@ -555,9 +574,7 @@ class Parser:
 
                     continue
 
-                row.append(
-                    self.expression()
-                )
+                row.append(self.matrix_element())
 
                 self.match(
                     TokenType.COMMA
