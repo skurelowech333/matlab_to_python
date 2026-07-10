@@ -132,7 +132,7 @@ class Translator:
     # ======================================================
 
     def visit_Assignment(self, node):
-        lhs = self.visit(
+        lhs = self.visit_assignment_target(
             node.target
         )
         rhs = self.visit(
@@ -141,6 +141,28 @@ class Translator:
         self.emit(
             f"{lhs} = {rhs}"
         )
+
+    def visit_assignment_target(self, node):
+        """
+        Convert assignment targets, handling multiple return values.
+        
+        MATLAB: [U, S, V] = svd(A)
+        Python: U, S, V = np.linalg.svd(A)
+        """
+        # Matrix used as tuple assignment target
+        if isinstance(node, Matrix):
+            # Extract identifiers from matrix rows
+            targets = []
+            for row in node.rows:
+                for cell in row:
+                    if isinstance(cell, Identifier):
+                        targets.append(cell.name)
+                    else:
+                        targets.append(self.visit(cell))
+            return ", ".join(targets)
+        
+        # Regular assignment target
+        return self.visit(node)
 
     def visit_ExpressionStatement(self, node):
         value = self.visit(
