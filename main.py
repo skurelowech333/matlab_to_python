@@ -32,22 +32,16 @@ def validate_python_file(filename):
     """
     Check generated Python syntax.
     """
-
     try:
-
         source = filename.read_text(
             encoding="utf-8"
         )
-
         ast.parse(source)
-
         return {
             "success": True,
             "error": None
         }
-
     except SyntaxError as error:
-
         return {
             "success": False,
             "error": (
@@ -62,21 +56,16 @@ def compile_python_file(filename):
     """
     Compile generated Python bytecode.
     """
-
     try:
-
         py_compile.compile(
             str(filename),
             doraise=True
         )
-
         return {
             "success": True,
             "error": None
         }
-
     except py_compile.PyCompileError as error:
-
         return {
             "success": False,
             "error": str(error)
@@ -87,17 +76,13 @@ def convert_file(m_file):
     """
     Convert one MATLAB file.
     """
-
     report = {
         "matlab_file": str(m_file),
         "success": False,
         "stages": {}
     }
-
     print(f"\nConverting {m_file}")
-
     try:
-
         source = m_file.read_text(
             encoding="utf-8"
         )
@@ -105,12 +90,9 @@ def convert_file(m_file):
         # --------------------------------------------------
         # Lexing
         # --------------------------------------------------
-
         lexer = Lexer(source)
         tokens = lexer.tokenize()
-
         print(f"    Tokens: {len(tokens)}")
-
         report["stages"]["lexer"] = {
             "success": True,
             "tokens": len(tokens)
@@ -119,12 +101,9 @@ def convert_file(m_file):
         # --------------------------------------------------
         # Parsing
         # --------------------------------------------------
-
         parser = Parser(tokens)
         tree = parser.parse()
-
         print("    Parsed")
-
         report["stages"]["parser"] = {
             "success": True
         }
@@ -132,47 +111,33 @@ def convert_file(m_file):
         # --------------------------------------------------
         # Semantic Analysis
         # --------------------------------------------------
-
         semantic = SemanticAnalyzer()
-
         tree = semantic.analyze(tree)
-
         report["stages"]["semantic"] = {
             "success": True,
             "warnings": semantic.warnings
         }
 
         if semantic.warnings:
-
             print(
                 f"    Semantic warnings: {len(semantic.warnings)}"
             )
-
             for warning in semantic.warnings:
-
                 print(f"      {warning}")
-
         else:
-
             print("    Semantic analysis passed")
 
         # --------------------------------------------------
         # Translation
         # --------------------------------------------------
-
         translator = Translator()
-
         python_code = translator.translate(tree)
-
         py_file = m_file.with_suffix(".py")
-
         py_file.write_text(
             python_code,
             encoding="utf-8"
         )
-
         print(f"    Generated {py_file.name}")
-
         report["stages"]["translation"] = {
             "success": True,
             "output": str(py_file)
@@ -181,34 +146,24 @@ def convert_file(m_file):
         # --------------------------------------------------
         # Syntax validation
         # --------------------------------------------------
-
         syntax_result = validate_python_file(py_file)
-
         report["stages"]["syntax_check"] = syntax_result
 
         if syntax_result["success"]:
-
             print("    Python syntax valid")
-
         else:
-
             print("    Python syntax error")
             print(f"      {syntax_result['error']}")
 
         # --------------------------------------------------
         # Compile validation
         # --------------------------------------------------
-
         compile_result = compile_python_file(py_file)
-
         report["stages"]["compile_check"] = compile_result
 
         if compile_result["success"]:
-
             print("    Python compile valid")
-
         else:
-
             print("    Python compile failed")
             print(f"      {compile_result['error']}")
 
@@ -218,10 +173,8 @@ def convert_file(m_file):
         )
 
     except Exception as error:
-
         report["error"] = str(error)
         report["traceback"] = traceback.format_exc()
-
         print("\n    Failed:")
         print(f"      {error}")
 
@@ -232,11 +185,9 @@ def convert_directory(directory):
     """
     Convert every MATLAB file in a directory tree.
     """
-
     directory = Path(directory)
 
     if not directory.exists():
-
         raise FileNotFoundError(directory)
 
     matlab_files = list(
@@ -244,35 +195,25 @@ def convert_directory(directory):
     )
 
     if not matlab_files:
-
         print("No MATLAB files found.")
         return
 
     print(f"Found {len(matlab_files)} MATLAB files")
-
     reports = []
-
     successful = 0
     failed = 0
 
     for m_file in matlab_files:
-
         result = convert_file(m_file)
-
         reports.append(result)
-
         if result["success"]:
-
             successful += 1
-
         else:
-
             failed += 1
 
     report_file = Path(
         "conversion_report.json"
     )
-
     report_file.write_text(
         json.dumps(
             reports,
@@ -280,7 +221,6 @@ def convert_directory(directory):
         ),
         encoding="utf-8"
     )
-
     print("\n==========================")
     print("Conversion Summary")
     print("==========================")
@@ -290,21 +230,17 @@ def convert_directory(directory):
 
 
 def main():
-
     matlab_directory = Path(
         "matlab_tests"
     )
 
     if not matlab_directory.exists():
-
         print(f"Missing directory: {matlab_directory}")
         print("Create matlab_tests and add .m files.")
-
         sys.exit(1)
 
     convert_directory(matlab_directory)
 
 
 if __name__ == "__main__":
-
     main()

@@ -24,13 +24,13 @@ MATLAB Source
     Lexer
       │
       ▼
-    Tokens (this module)
+     Tokens (this module)
       │
       ▼
-    Parser
+     Parser
       │
       ▼
-      AST
+       AST
 
 The lexer converts raw source text into a sequence of Token objects. The parser
 then analyzes these tokens to construct the Abstract Syntax Tree (AST).
@@ -56,21 +56,17 @@ class TokenType(Enum):
     """Enumeration of all MATLAB token types."""
 
     # ---------- Special ----------
-
     EOF = auto()
     NEWLINE = auto()
 
     # ---------- Identifiers ----------
-
     IDENTIFIER = auto()
 
     # ---------- Literals ----------
-
     NUMBER = auto()
     STRING = auto()
 
     # ---------- Keywords ----------
-
     FUNCTION = auto()
 
     IF = auto()
@@ -101,7 +97,6 @@ class TokenType(Enum):
     METHODS = auto()
 
     # ---------- Operators ----------
-
     PLUS = auto()
     MINUS = auto()
 
@@ -133,7 +128,6 @@ class TokenType(Enum):
     COLON = auto()
 
     # ---------- Delimiters ----------
-
     LPAREN = auto()
     RPAREN = auto()
 
@@ -151,7 +145,6 @@ class TokenType(Enum):
     AT = auto()
 
     # ---------- Comments ----------
-
     COMMENT = auto()
 
 
@@ -200,30 +193,22 @@ class Token:
 
 KEYWORDS = {
     "function": TokenType.FUNCTION,
-
     "if": TokenType.IF,
     "elseif": TokenType.ELSEIF,
     "else": TokenType.ELSE,
-
     "for": TokenType.FOR,
     "while": TokenType.WHILE,
-
     "switch": TokenType.SWITCH,
     "case": TokenType.CASE,
     "otherwise": TokenType.OTHERWISE,
-
     "break": TokenType.BREAK,
     "continue": TokenType.CONTINUE,
     "return": TokenType.RETURN,
-
     "end": TokenType.END,
-
     "try": TokenType.TRY,
     "catch": TokenType.CATCH,
-
     "global": TokenType.GLOBAL,
     "persistent": TokenType.PERSISTENT,
-
     "classdef": TokenType.CLASSDEF,
     "properties": TokenType.PROPERTIES,
     "methods": TokenType.METHODS,
@@ -237,47 +222,32 @@ KEYWORDS = {
 OPERATORS = {
     "+": TokenType.PLUS,
     "-": TokenType.MINUS,
-
     "*": TokenType.TIMES,
     "/": TokenType.DIVIDE,
     "^": TokenType.POWER,
-
     ".*": TokenType.ELEMENT_TIMES,
     "./": TokenType.ELEMENT_DIVIDE,
     ".^": TokenType.ELEMENT_POWER,
-
     "=": TokenType.ASSIGN,
-
     "==": TokenType.EQUAL,
     "~=": TokenType.NOT_EQUAL,
-
     "<": TokenType.LESS,
     "<=": TokenType.LESS_EQUAL,
-
     ">": TokenType.GREATER,
     ">=": TokenType.GREATER_EQUAL,
-
     "&&": TokenType.AND,
     "||": TokenType.OR,
     "~": TokenType.NOT,
-
     "'": TokenType.TRANSPOSE,
-
     ":": TokenType.COLON,
-
     "(": TokenType.LPAREN,
     ")": TokenType.RPAREN,
-
     "[": TokenType.LBRACKET,
     "]": TokenType.RBRACKET,
-
     "{": TokenType.LBRACE,
     "}": TokenType.RBRACE,
-
     ",": TokenType.COMMA,
     ";": TokenType.SEMICOLON,
-
     ".": TokenType.DOT,
-
     "@": TokenType.AT,
 }
