@@ -10,6 +10,10 @@ Supports: functions, loops, conditionals, try-catch, and more.
 
 from abstract_syntax_tree import *
 from translate.builtins import translate_builtin
+from translate.indexing import (
+    convert_index,
+    convert_slice,
+)
 
 
 class Translator:
@@ -406,3 +410,33 @@ class Translator:
 
     def map_function(self, name):
         return translate_builtin(name)
+
+    # ======================================================
+    # Indexing
+    # ======================================================
+
+    def visit_Index(self, node):
+        """
+        Handle MATLAB array indexing: A(i,j) -> A[i-1,j-1]
+        Converts Index AST nodes to Python bracket notation.
+        """
+        variable = self.visit(node.value)
+        indices = []
+
+        for index in node.indices:
+            # Handle slice objects (colons)
+            if isinstance(index, Slice):
+                indices.append(
+                    convert_slice(index)
+                )
+            # Handle regular indices
+            else:
+                indices.append(
+                    convert_index(index)
+                )
+
+        return (
+            f"{variable}["
+            + ",".join(indices)
+            + "]"
+        )
