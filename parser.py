@@ -26,6 +26,8 @@ from abstract_syntax_tree import (
     Function,
     Assignment,
     ExpressionStatement,
+    ClassDef,
+    PropertyBlock,
     For,
     If,
     Comment,
@@ -642,4 +644,128 @@ class Parser:
 
         raise SyntaxError(
             f"Unexpected token {token}"
+        )
+        
+    # ======================================================
+    # MATLAB Class Definition
+    # ======================================================
+    
+    def classdef(self):
+    
+        token = self.expect(
+            TokenType.CLASSDEF
+        )
+    
+        name = self.expect(
+            TokenType.IDENTIFIER
+        ).value
+    
+    
+        properties = []
+        methods = []
+    
+    
+        self.skip_newlines()
+    
+    
+        while not self.check(TokenType.END) and not self.check(TokenType.EOF):
+    
+    
+            # ------------------------------
+            # Properties block
+            # ------------------------------
+    
+            if self.check(TokenType.PROPERTIES):
+    
+                self.advance()
+    
+                body = []
+    
+                self.skip_newlines()
+    
+                while (
+                    not self.check(TokenType.END)
+                    and
+                    not self.check(TokenType.EOF)
+                ):
+    
+                    stmt = self.assignment_or_expression()
+    
+                    if stmt:
+                        body.append(stmt)
+    
+                    self.skip_newlines()
+    
+    
+                self.expect(
+                    TokenType.END
+                )
+    
+    
+                properties.append(
+                    PropertyBlock(
+                        body=body
+                    )
+                )
+    
+    
+                continue
+    
+    
+    
+            # ------------------------------
+            # Methods block
+            # ------------------------------
+    
+            if self.check(TokenType.METHODS):
+    
+                self.advance()
+    
+                self.skip_newlines()
+    
+    
+                while (
+                    not self.check(TokenType.END)
+                    and
+                    not self.check(TokenType.EOF)
+                ):
+    
+                    if self.check(TokenType.FUNCTION):
+    
+                        methods.append(
+                            self.function()
+                        )
+    
+                    else:
+    
+                        self.advance()
+    
+    
+                    self.skip_newlines()
+    
+    
+                self.expect(
+                    TokenType.END
+                )
+    
+    
+                continue
+    
+    
+    
+            self.advance()
+    
+    
+        self.expect(
+            TokenType.END
+        )
+    
+    
+        return self.make_node(
+            ClassDef(
+                name=name,
+                properties=properties,
+                methods=methods
+            ),
+            token
         )

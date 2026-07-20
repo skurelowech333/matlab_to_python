@@ -34,14 +34,23 @@ class Program(Node):
 @dataclass
 class Function(Node):
     name: str = ""
+
     inputs: List[str] = field(
         default_factory=list
     )
+
     outputs: List[str] = field(
         default_factory=list
     )
+
     body: List["Node"] = field(
         default_factory=list
+    )
+
+    is_method: bool = False
+
+    attributes: dict = field(
+        default_factory=dict
     )
 
 
@@ -315,6 +324,31 @@ class Lambda(Node):
 @dataclass
 class Comment(Node):
     text: str = ""
+    
+    
+# ==========================================================
+# Classes
+# ==========================================================
+
+@dataclass
+class ClassDef(Node):
+    name: str = ""
+    properties: List["PropertyBlock"] = field(
+        default_factory=list
+    )
+    methods: List["Function"] = field(
+        default_factory=list
+    )
+
+
+@dataclass
+class PropertyBlock(Node):
+    attributes: List[str] = field(
+        default_factory=list
+    )
+    body: List["Node"] = field(
+        default_factory=list
+    )
 
 
 # ==========================================================

@@ -2,28 +2,15 @@ from __future__ import annotations
 
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul 10 17:41:35 2026
-
-@author: Sarah
-"""
-
-"""
 lexer.py
 
 Lexical analyzer for the MATLAB-to-Python translator.
 
-The lexer converts MATLAB source text into a stream of Token objects.
-
 Responsibilities:
-    - Read source characters
-    - Recognize MATLAB language elements
+    - Read MATLAB source
+    - Recognize tokens
     - Track source locations
-    - Generate tokens for the parser
-
-The lexer does NOT:
-    - Understand program structure
-    - Build an AST
-    - Translate MATLAB syntax
+    - Generate parser input
 """
 
 from pathlib import Path
@@ -37,9 +24,6 @@ from tokens import (
 
 
 class Lexer:
-    """
-    MATLAB source code lexer.
-    """
 
     def __init__(self, source: str):
 
@@ -51,7 +35,6 @@ class Lexer:
 
         self.length = len(source)
 
-        # Keep generated tokens for debugging/parser context
         self.tokens = []
 
 
@@ -89,7 +72,6 @@ class Lexer:
         if char == "\n":
             self.line += 1
             self.column = 1
-
         else:
             self.column += 1
 
@@ -103,28 +85,15 @@ class Lexer:
         return token
 
 
-
     # ======================================================
     # Whitespace
     # ======================================================
 
     def skip_whitespace(self):
 
-        while True:
+        while self.current() in (" ", "\t", "\r"):
 
-            char = self.current()
-
-            if char is None:
-                break
-
-            if char in " \t\r":
-
-                self.advance()
-
-            else:
-
-                break
-
+            self.advance()
 
 
     # ======================================================
@@ -152,7 +121,6 @@ class Lexer:
                 self.advance()
 
             else:
-
                 break
 
 
@@ -161,14 +129,12 @@ class Lexer:
             TokenType.IDENTIFIER
         )
 
-
         return Token(
             token_type,
             value,
             start_line,
             start_col
         )
-
 
 
     # ======================================================
@@ -184,7 +150,6 @@ class Lexer:
 
         decimal = False
 
-
         while True:
 
             char = self.current()
@@ -192,13 +157,11 @@ class Lexer:
             if char is None:
                 break
 
-
             if char.isdigit():
 
                 value += char
 
                 self.advance()
-
 
             elif char == "." and not decimal:
 
@@ -208,29 +171,25 @@ class Lexer:
 
                 self.advance()
 
-
             else:
-
                 break
 
-
-
-        # scientific notation
 
         if self.current() in ("e", "E"):
 
             value += self.advance()
-
 
             if self.current() in ("+", "-"):
 
                 value += self.advance()
 
 
-            while self.current() and self.current().isdigit():
+            while (
+                self.current()
+                and self.current().isdigit()
+            ):
 
                 value += self.advance()
-
 
 
         return Token(
@@ -239,7 +198,6 @@ class Lexer:
             start_line,
             start_col
         )
-
 
 
     # ======================================================
@@ -253,20 +211,16 @@ class Lexer:
 
         value = ""
 
-
         while True:
 
             char = self.current()
 
             if char is None or char == "\n":
-
                 break
-
 
             value += char
 
             self.advance()
-
 
 
         return Token(
@@ -275,7 +229,6 @@ class Lexer:
             start_line,
             start_col
         )
-
 
 
     # ======================================================
@@ -287,16 +240,12 @@ class Lexer:
         start_line = self.line
         start_col = self.column
 
-
-        # longest operators first
-
         for length in (3, 2, 1):
 
             text = self.source[
                 self.position:
                 self.position + length
             ]
-
 
             if text in OPERATORS:
 
@@ -312,36 +261,26 @@ class Lexer:
                     start_col
                 )
 
-
         return None
 
 
-
     # ======================================================
-    # Main tokenizer
+    # Tokenizer
     # ======================================================
 
     def tokenize(self):
 
         tokens = []
 
-
         while self.current() is not None:
-
 
             self.skip_whitespace()
 
-
             char = self.current()
 
-
             if char is None:
-
                 break
 
-
-
-            # newline
 
             if char == "\n":
 
@@ -361,53 +300,40 @@ class Lexer:
                 continue
 
 
-
-            # comments
-
             if char == "%":
 
-                token = self.read_comment()
-
                 tokens.append(
-                    self.add_token(token)
+                    self.add_token(
+                        self.read_comment()
+                    )
                 )
 
                 continue
 
-
-
-            # identifiers
 
             if char.isalpha() or char == "_":
 
-                token = self.read_identifier()
-
                 tokens.append(
-                    self.add_token(token)
+                    self.add_token(
+                        self.read_identifier()
+                    )
                 )
 
                 continue
 
-
-
-            # numbers
 
             if char.isdigit():
 
-                token = self.read_number()
-
                 tokens.append(
-                    self.add_token(token)
+                    self.add_token(
+                        self.read_number()
+                    )
                 )
 
                 continue
 
 
-
-            # operators
-
             token = self.read_operator()
-
 
             if token:
 
@@ -418,27 +344,22 @@ class Lexer:
                 continue
 
 
-
             raise SyntaxError(
-                f"Unknown character "
-                f"{char!r} "
+                f"Unknown character {char!r} "
                 f"at {self.line}:{self.column}"
             )
 
 
-
-        eof = Token(
-            TokenType.EOF,
-            "",
-            self.line,
-            self.column
-        )
-
-
         tokens.append(
-            self.add_token(eof)
+            self.add_token(
+                Token(
+                    TokenType.EOF,
+                    "",
+                    self.line,
+                    self.column
+                )
+            )
         )
-
 
         return tokens
 
@@ -452,6 +373,4 @@ def tokenize_file(filename):
 
     source = Path(filename).read_text()
 
-    lexer = Lexer(source)
-
-    return lexer.tokenize()
+    return Lexer(source).tokenize()

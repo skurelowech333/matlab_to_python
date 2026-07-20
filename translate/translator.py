@@ -520,3 +520,30 @@ class Translator:
             + ",".join(indices)
             + "]"
         )
+    
+    def visit_ClassDef(self,node):
+
+        self.emit(
+            f"class {node.name}:"
+        )
+    
+    
+        if not node.properties and not node.methods:
+    
+            self.emit(
+                "    pass"
+            )
+    
+            return
+    
+    
+        for prop in node.properties:
+    
+            for stmt in prop.body:
+    
+                self.visit(stmt)
+    
+    
+        for method in node.methods:
+    
+            self.visit(method)
