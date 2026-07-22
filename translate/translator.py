@@ -21,6 +21,10 @@ class Translator:
     def __init__(self):
         self.lines = []
         self.indent = 0
+    
+        self.in_class = False
+        self.class_name = None
+        self.current_method = None
 
     # ======================================================
     # Helpers
@@ -99,32 +103,110 @@ class Translator:
     # ======================================================
 
     def visit_Function(self, node):
-        args = ", ".join(
-            node.inputs
-        )
-        self.emit(
-            f"def {node.name}({args}):"
-        )
-        self.indent += 1
-        if not node.body:
-            self.emit(
-                "pass"
-            )
+
+        method_name = node.name
+    
+    
+        # ==========================================
+        # MATLAB class methods
+        # ==========================================
+    
+        if self.in_class:
+    
+            # Constructor:
+            # MATLAB:
+            # function obj = ClassName(args)
+            #
+            # Python:
+            # def __init__(self,args)
+    
+            if node.name == self.class_name:
+    
+                method_name = "__init__"
+    
+                args = ", ".join(
+                    ["self"] + node.inputs
+                )
+    
+    
+            # Normal class method:
+            #
+            # MATLAB:
+            # function x = foo(obj,a)
+            #
+            # Python:
+            # def foo(self,a)
+    
+            else:
+    
+                args = ", ".join(
+                    ["self"] + node.inputs[1:]
+                )
+    
+    
+        # ==========================================
+        # Normal MATLAB functions
+        # ==========================================
+    
         else:
+    
+            args = ", ".join(
+                node.inputs
+            )
+    
+    
+        self.emit(
+            f"def {method_name}({args}):"
+        )
+    
+    
+        self.indent += 1
+    
+    
+        if not node.body:
+    
+            self.emit("pass")
+    
+        else:
+    
             for statement in node.body:
                 self.visit(statement)
-        if node.outputs:
+    
+    
+    
+        # ==========================================
+        # Return values
+        # ==========================================
+    
+        # Constructors never return MATLAB obj
+        if (
+                node.outputs
+                and not (
+                    self.in_class
+                    and (
+                        method_name == "__init__"
+                        or node.outputs == ["obj"]
+                    )
+                )
+            ):
+                
             self.emit()
+    
             if len(node.outputs) == 1:
+    
                 self.emit(
                     f"return {node.outputs[0]}"
                 )
+    
             else:
+    
                 self.emit(
                     "return "
                     +
                     ", ".join(node.outputs)
                 )
+    
+    
         self.indent -= 1
 
     # ======================================================
@@ -143,25 +225,40 @@ class Translator:
         )
 
     def visit_assignment_target(self, node):
-        """
-        Convert assignment targets, handling multiple return values.
-        
-        MATLAB: [U, S, V] = svd(A)
-        Python: U, S, V = np.linalg.svd(A)
-        """
-        # Matrix used as tuple assignment target
-        if isinstance(node, Matrix):
-            # Extract identifiers from matrix rows
+
+        # obj.mass = x
+        # becomes
+        # self.mass = x
+    
+        if isinstance(
+            node,
+            FieldAccess
+        ):
+    
+            return self.visit(node)
+    
+    
+        # Multiple outputs:
+        # [a,b,c] = func()
+    
+        if isinstance(
+            node,
+            Matrix
+        ):
+    
             targets = []
+    
             for row in node.rows:
+    
                 for cell in row:
-                    if isinstance(cell, Identifier):
-                        targets.append(cell.name)
-                    else:
-                        targets.append(self.visit(cell))
+    
+                    targets.append(
+                        self.visit(cell)
+                    )
+    
             return ", ".join(targets)
-        
-        # Regular assignment target
+    
+    
         return self.visit(node)
 
     def visit_ExpressionStatement(self, node):
@@ -477,16 +574,17 @@ class Translator:
     # ======================================================
 
     def visit_Call(self, node):
-        name = self.visit(
+
+        function = self.visit(
             node.function
         )
+    
         args = ", ".join(
             self.visit(x)
             for x in node.arguments
         )
-        return (
-            f"{self.map_function(name)}({args})"
-        )
+    
+        return f"{function}({args})"
 
     def map_function(self, name):
         return translate_builtin(name)
@@ -521,29 +619,85 @@ class Translator:
             + "]"
         )
     
-    def visit_ClassDef(self,node):
+    def visit_ClassDef(self, node):
 
         self.emit(
             f"class {node.name}:"
         )
     
+        self.indent += 1
     
-        if not node.properties and not node.methods:
+        self.in_class = True
+        self.class_name = node.name
+    
+    
+        # ==========================================
+        # Class properties
+        # ==========================================
+    
+        if node.properties:
+    
+            for prop in node.properties:
+    
+                for stmt in prop.body:
+    
+                    if isinstance(
+                        stmt,
+                        ExpressionStatement
+                    ):
+    
+                        if isinstance(
+                            stmt.expression,
+                            Identifier
+                        ):
+    
+                            self.emit(
+                                f"{stmt.expression.name} = None"
+                            )
+    
+    
+        # ==========================================
+        # Methods
+        # ==========================================
+    
+        if node.methods:
+    
+            self.emit()
+    
+            for method in node.methods:
+    
+                self.visit(method)
+    
+                self.emit()
+    
+        else:
     
             self.emit(
-                "    pass"
+                "pass"
             )
     
-            return
+    
+        self.indent -= 1
     
     
-        for prop in node.properties:
+        self.in_class = False
+        self.class_name = None
     
-            for stmt in prop.body:
+    def visit_FieldAccess(self, node):
+
+        value = self.visit(
+            node.value
+        )
     
-                self.visit(stmt)
+    
+        # MATLAB object variable
+        # obj.mass -> self.mass
+    
+        if value == "obj":
+    
+            value = "self"
     
     
-        for method in node.methods:
-    
-            self.visit(method)
+        return (
+            f"{value}.{node.field}"
+        )

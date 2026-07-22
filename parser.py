@@ -41,6 +41,7 @@ from abstract_syntax_tree import (
     Index,
     Slice,
     End,
+    FieldAccess
 )
 
 
@@ -168,6 +169,8 @@ class Parser:
                 ),
                 token
             )
+        if self.check(TokenType.CLASSDEF):
+            return self.classdef()
 
         if self.check(TokenType.SEMICOLON):
             self.advance()
@@ -461,30 +464,54 @@ class Parser:
     # ======================================================
 
     def postfix(self):
-        """
-        Handle postfix operations: indexing and function calls.
-        MATLAB uses () for both, but we need to distinguish:
-        - func(args) -> function call
-        - A(i,j) -> array indexing
-        """
-        node = self.primary()
 
+        node = self.primary()
+    
         while True:
-            # Array indexing: A(i,j)
-            if self.check(TokenType.LPAREN):
+    
+            # obj.field
+            if self.check(TokenType.DOT):
+    
                 self.advance()
+    
+                field = self.expect(
+                    TokenType.IDENTIFIER
+                ).value
+    
+                node = self.make_node(
+                    FieldAccess(
+                        value=node,
+                        field=field
+                    )
+                )
+    
+                continue
+    
+    
+            # A(i,j)
+            if self.check(TokenType.LPAREN):
+    
+                self.advance()
+    
                 indices = self.parse_indices()
-                self.expect(TokenType.RPAREN)
-                
+    
+                self.expect(
+                    TokenType.RPAREN
+                )
+    
                 node = self.make_node(
                     Index(
                         value=node,
                         indices=indices
                     )
                 )
-            else:
-                break
-
+    
+                continue
+    
+    
+            break
+    
+    
         return node
 
     def parse_indices(self):
