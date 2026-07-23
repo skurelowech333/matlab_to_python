@@ -468,8 +468,25 @@ class Parser:
         node = self.primary()
     
         while True:
+            
+            if self.check(TokenType.TRANSPOSE):
+
+               self.advance()
     
+               node = UnaryOp(
+                   operator="'",
+                   operand=node
+               )
+    
+               continue
+        
+            # ==========================================
+            # Field access
+            #
             # obj.field
+            # sat.mass
+            # ==========================================
+    
             if self.check(TokenType.DOT):
     
                 self.advance()
@@ -488,21 +505,71 @@ class Parser:
                 continue
     
     
-            # A(i,j)
+            # ==========================================
+            # Parentheses
+            #
+            # Could be:
+            #
+            #  A(1,2)       -> Index
+            #  foo(x)       -> Call
+            #  obj.foo(x)   -> Call
+            #
+            # ==========================================
+    
             if self.check(TokenType.LPAREN):
     
                 self.advance()
     
-                indices = self.parse_indices()
+                arguments = self.parse_arguments()
     
                 self.expect(
                     TokenType.RPAREN
                 )
     
+    
+                # --------------------------------------
+                # Method/function call
+                #
+                # foo(x)
+                # obj.foo(x)
+                #
+                # --------------------------------------
+    
+                if isinstance(node, Identifier):
+    
+                    node = self.make_node(
+                        Call(
+                            function=node,
+                            arguments=arguments
+                        )
+                    )
+    
+                    continue
+    
+    
+                if isinstance(node, FieldAccess):
+    
+                    node = self.make_node(
+                        Call(
+                            function=node,
+                            arguments=arguments
+                        )
+                    )
+    
+                    continue
+    
+    
+                # --------------------------------------
+                # Otherwise array indexing
+                #
+                # A(i,j)
+                #
+                # --------------------------------------
+    
                 node = self.make_node(
                     Index(
                         value=node,
-                        indices=indices
+                        indices=arguments
                     )
                 )
     
@@ -513,6 +580,8 @@ class Parser:
     
     
         return node
+    
+    
 
     def parse_indices(self):
         """
@@ -673,6 +742,19 @@ class Parser:
             f"Unexpected token {token}"
         )
         
+        # -------------------------------
+        # String
+        # -------------------------------
+        
+        if token.type == TokenType.STRING:
+        
+            return self.make_node(
+                String(
+                    value=token.value
+                ),
+                token
+            )
+        
     # ======================================================
     # MATLAB Class Definition
     # ======================================================
@@ -783,12 +865,9 @@ class Parser:
             self.advance()
     
     
-        self.expect(
-            TokenType.END
-        )
-    
-    
-        return self.make_node(
+        self.expect(TokenType.END)
+
+        class_node = self.make_node(
             ClassDef(
                 name=name,
                 properties=properties,
@@ -796,3 +875,5 @@ class Parser:
             ),
             token
         )
+        
+        return class_node

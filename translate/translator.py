@@ -226,25 +226,68 @@ class Translator:
 
     def visit_assignment_target(self, node):
 
-        # obj.mass = x
-        # becomes
-        # self.mass = x
+        # ==========================================
+        # Array indexing assignment
+        #
+        # MATLAB:
+        # stats(1) = x
+        #
+        # Python:
+        # stats[0] = x
+        #
+        # ==========================================
     
-        if isinstance(
-            node,
-            FieldAccess
-        ):
+        if isinstance(node, Index):
+    
+            variable = self.visit(
+                node.value
+            )
+    
+            indices = []
+    
+            for index in node.indices:
+    
+                if isinstance(index, Slice):
+    
+                    indices.append(
+                        convert_slice(index)
+                    )
+    
+                else:
+    
+                    indices.append(
+                        convert_index(index)
+                    )
+    
+            return (
+                f"{variable}["
+                +
+                ",".join(indices)
+                +
+                "]"
+            )
+    
+    
+        # ==========================================
+        # Object fields
+        #
+        # obj.mass = x
+        #
+        # ==========================================
+    
+        if isinstance(node, FieldAccess):
     
             return self.visit(node)
     
     
-        # Multiple outputs:
+        # ==========================================
+        # Multiple assignment
+        #
         # [a,b,c] = func()
+        #
+        # ==========================================
     
-        if isinstance(
-            node,
-            Matrix
-        ):
+        if isinstance(node, Matrix):
     
             targets = []
     
@@ -495,29 +538,18 @@ class Translator:
     # Unary Operations
     # ======================================================
 
-    def visit_UnaryOp(self, node):
-        """
-        Handle unary MATLAB operators.
-
-        Examples:
-            -5
-            -x
-            -(a+b)
-
-        MATLAB AST:
-            UnaryOp(
-                operator="-",
-                operand=Number(5)
-            )
-
-        Python:
-            -5
-        """
+    def visit_UnaryOp(self,node):
 
         operand = self.visit(
             node.operand
         )
-
+    
+        if node.operator == "'":
+    
+            return (
+                f"np.transpose({operand})"
+            )
+    
         return (
             f"{node.operator}{operand}"
         )

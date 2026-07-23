@@ -1,56 +1,28 @@
-classdef TestSatellite
+import numpy as np
 
-    properties
-        mass
-        area
-        name
-    end
+class TestSatellite:
+    mass = None
+    area = None
+    name = None
+    
+    def __init__(self, m, a, n):
+        self.mass = m
+        self.area = a
+        self.name = n
+    
+    def getMass(self):
+        m = self.mass
+        
+        return m
+    
+    def ballisticCoefficient(self):
+        beta = (self.mass / self.area)
+        
+        return beta
+    
 
+# =====================================================
 
-    methods
+# Test class usage
 
-        % Constructor
-        function obj = TestSatellite(m, a, n)
-
-            obj.mass = m;
-            obj.area = a;
-            obj.name = n;
-
-        end
-
-
-        % Getter
-        function m = getMass(obj)
-
-            m = obj.mass;
-
-        end
-
-
-        % Ballistic coefficient
-        function beta = ballisticCoefficient(obj)
-
-            beta = obj.mass / obj.area;
-
-        end
-
-    end
-
-end
-
-
-% =====================================================
-% Test class usage
-% =====================================================
-
-sat = TestSatellite(1000, 20, "TestSat");
-
-
-mass_value = sat.getMass();
-
-
-beta_value = sat.ballisticCoefficient();
-
-
-disp(mass_value)
-disp(beta_value)
+# =====================================================

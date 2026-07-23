@@ -331,6 +331,17 @@ class Lexer:
                 )
 
                 continue
+            
+            # MATLAB strings use double quotes
+            if char == '"':
+            
+                tokens.append(
+                    self.add_token(
+                        self.read_string()
+                    )
+                )
+            
+                continue
 
 
             token = self.read_operator()
@@ -364,6 +375,70 @@ class Lexer:
         return tokens
 
 
+    # ======================================================
+    # Strings
+    # ======================================================
+
+    def read_string(self):
+
+        start_line = self.line
+        start_col = self.column
+
+        quote = self.current()
+
+        value = ""
+
+        # consume opening quote
+        self.advance()
+
+
+        while True:
+
+            char = self.current()
+
+            if char is None:
+                raise SyntaxError(
+                    f"Unterminated string at "
+                    f"{start_line}:{start_col}"
+                )
+
+
+            # closing quote
+            if char == quote:
+                self.advance()
+                break
+
+
+            # MATLAB escaped quote:
+            # 'don''t'
+            
+            if (
+                char == quote
+                and self.peek() == quote
+            ):
+            
+                value += quote
+                self.advance()
+                self.advance()
+                continue
+            
+            
+            # closing quote
+            if char == quote:
+                self.advance()
+                break
+
+
+            value += char
+            self.advance()
+
+
+        return Token(
+            TokenType.STRING,
+            value,
+            start_line,
+            start_col
+        )
 
 # ==========================================================
 # Convenience loader
