@@ -1,189 +1,122 @@
 # -*- coding: utf-8 -*-
-"""
-Abstract Syntax Tree definitions for the MATLAB-to-Python translator.
-"""
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 
-# ==========================================================
-# Base Node
-# ==========================================================
+NodeList = list["Node"]
+
 
 @dataclass
 class Node:
-    """Base class for every AST node."""
     line: int = 0
     source: str = ""
 
 
-# ==========================================================
-# Program
-# ==========================================================
-
 @dataclass
 class Program(Node):
-    body: List["Node"] = field(default_factory=list)
+    body: NodeList = field(default_factory=list)
 
 
-# ==========================================================
 # Functions
-# ==========================================================
 
 @dataclass
 class Function(Node):
     name: str = ""
-    inputs: List[str] = field(
-        default_factory=list
-    )
-    outputs: List[str] = field(
-        default_factory=list
-    )
-    body: List["Node"] = field(
-        default_factory=list
-    )
+    inputs: list[str] = field(default_factory=list)
+    outputs: list[str] = field(default_factory=list)
+    body: NodeList = field(default_factory=list)
 
 
-# ==========================================================
 # Statements
-# ==========================================================
 
 @dataclass
 class Assignment(Node):
-    target: "Node" = None
-    value: "Node" = None
+    target: Node = None
+    value: Node = None
 
 
 @dataclass
 class Return(Node):
-    values: List["Node"] = field(
-        default_factory=list
-    )
+    values: NodeList = field(default_factory=list)
 
 
 @dataclass
 class ExpressionStatement(Node):
-    expression: "Node" = None
+    expression: Node = None
 
 
-@dataclass
 class Break(Node):
     pass
 
 
-@dataclass
 class Continue(Node):
     pass
 
 
-# ==========================================================
-# Conversion Recovery
-# ==========================================================
-
 @dataclass
 class FailedConversion(Node):
-    """
-    Represents MATLAB code that could not be translated.
-    The translator will preserve it as comments.
-
-    Example:
-        # CONVERSION FAILED:
-        # Unsupported syntax
-        # ORIGINAL MATLAB:
-        # foo(bar)
-    """
     matlab_text: str = ""
     error: str = ""
 
 
 @dataclass
 class RawMATLAB(Node):
-    """
-    Preserves original MATLAB source.
-    Used when exact source preservation is required.
-    """
     text: str = ""
 
 
-# ==========================================================
-# Control Flow
-# ==========================================================
+# Control flow
 
 @dataclass
 class If(Node):
-    condition: "Node" = None
-    body: List["Node"] = field(
-        default_factory=list
-    )
-    elseif_blocks: List["ElseIf"] = field(
-        default_factory=list
-    )
-    else_body: List["Node"] = field(
-        default_factory=list
-    )
+    condition: Node = None
+    body: NodeList = field(default_factory=list)
+    elseif_blocks: list["ElseIf"] = field(default_factory=list)
+    else_body: NodeList = field(default_factory=list)
 
 
 @dataclass
 class ElseIf(Node):
-    condition: "Node" = None
-    body: List["Node"] = field(
-        default_factory=list
-    )
+    condition: Node = None
+    body: NodeList = field(default_factory=list)
 
 
 @dataclass
 class For(Node):
     variable: str = ""
-    start: "Node" = None
-    stop: "Node" = None
-    step: Optional["Node"] = None
-    body: List["Node"] = field(
-        default_factory=list
-    )
+    start: Node = None
+    stop: Node = None
+    step: Optional[Node] = None
+    body: NodeList = field(default_factory=list)
 
 
 @dataclass
 class While(Node):
-    condition: "Node" = None
-    body: List["Node"] = field(
-        default_factory=list
-    )
+    condition: Node = None
+    body: NodeList = field(default_factory=list)
 
 
 @dataclass
 class Switch(Node):
-    expression: "Node" = None
-    cases: List["Case"] = field(
-        default_factory=list
-    )
-    default_body: List["Node"] = field(
-        default_factory=list
-    )
+    expression: Node = None
+    cases: list["Case"] = field(default_factory=list)
+    default_body: NodeList = field(default_factory=list)
 
 
 @dataclass
 class Case(Node):
-    value: "Node" = None
-    body: List["Node"] = field(
-        default_factory=list
-    )
+    value: Node = None
+    body: NodeList = field(default_factory=list)
 
 
 @dataclass
 class Try(Node):
-    body: List["Node"] = field(
-        default_factory=list
-    )
-    catch_body: List["Node"] = field(
-        default_factory=list
-    )
+    body: NodeList = field(default_factory=list)
+    catch_body: NodeList = field(default_factory=list)
     catch_var: str = ""
 
 
-# ==========================================================
 # Expressions
-# ==========================================================
 
 @dataclass
 class Identifier(Node):
@@ -208,123 +141,87 @@ class Boolean(Node):
 @dataclass
 class BinaryOp(Node):
     operator: str = ""
-    left: "Node" = None
-    right: "Node" = None
+    left: Node = None
+    right: Node = None
 
 
 @dataclass
 class UnaryOp(Node):
     operator: str = ""
-    operand: "Node" = None
+    operand: Node = None
 
 
-# ==========================================================
-# Function Calls
-# ==========================================================
+# Calls
 
 @dataclass
 class Call(Node):
-    function: "Node" = None
-    arguments: List["Node"] = field(
-        default_factory=list
-    )
+    function: Node = None
+    arguments: NodeList = field(default_factory=list)
 
 
-# ==========================================================
 # Indexing
-# ==========================================================
 
 @dataclass
 class Index(Node):
-    value: "Node" = None
-    indices: List["Node"] = field(
-        default_factory=list
-    )
+    value: Node = None
+    indices: NodeList = field(default_factory=list)
 
 
 @dataclass
 class Slice(Node):
-    start: Optional["Node"] = None
-    stop: Optional["Node"] = None
-    step: Optional["Node"] = None
+    start: Node = None
+    stop: Node = None
+    step: Node = None
 
 
-@dataclass
 class End(Node):
-    """
-    Represents MATLAB's end keyword.
-    """
     pass
 
 
-# ==========================================================
-# Arrays / Matrices
-# ==========================================================
+# Arrays
 
 @dataclass
 class Matrix(Node):
-    rows: List[List["Node"]] = field(
-        default_factory=list
-    )
+    rows: list[list[Node]] = field(default_factory=list)
     shape: Optional[tuple] = None
 
 
 @dataclass
 class CellArray(Node):
-    rows: List[List["Node"]] = field(
-        default_factory=list
-    )
+    rows: list[list[Node]] = field(default_factory=list)
 
 
 @dataclass
 class Range(Node):
-    """
-    Represents MATLAB range expressions: start:step:stop
-    """
-    start: "Node" = None
-    step: Optional["Node"] = None
-    stop: "Node" = None
+    start: Node = None
+    step: Node = None
+    stop: Node = None
 
 
-# ==========================================================
 # Structs
-# ==========================================================
 
 @dataclass
 class FieldAccess(Node):
-    value: "Node" = None
+    value: Node = None
     field: str = ""
 
 
-# ==========================================================
-# Anonymous Functions
-# ==========================================================
+# Anonymous functions
 
 @dataclass
 class Lambda(Node):
-    parameters: List[str] = field(
-        default_factory=list
-    )
-    body: "Node" = None
+    parameters: list[str] = field(default_factory=list)
+    body: Node = None
 
-
-# ==========================================================
-# Comments
-# ==========================================================
 
 @dataclass
 class Comment(Node):
     text: str = ""
 
 
-# ==========================================================
 # Utilities
-# ==========================================================
 
 def walk(node):
-    """
-    Recursively walk the AST.
-    """
     yield node
 
     for value in vars(node).values():
@@ -337,38 +234,12 @@ def walk(node):
 
 
 def pretty(node, indent=0):
-    """
-    Pretty-print the AST.
-    """
-    prefix = "    " * indent
-    print(
-        f"{prefix}{node.__class__.__name__}"
-    )
+    print("  " * indent + node.__class__.__name__)
 
     for name, value in vars(node).items():
         if isinstance(value, Node):
-            print(
-                f"{prefix}  {name}:"
-            )
-            pretty(
-                value,
-                indent + 2
-            )
+            pretty(value, indent + 1)
         elif isinstance(value, list):
-            print(
-                f"{prefix}  {name}:"
-            )
             for item in value:
                 if isinstance(item, Node):
-                    pretty(
-                        item,
-                        indent + 2
-                    )
-                else:
-                    print(
-                        f"{prefix}    {item}"
-                    )
-        else:
-            print(
-                f"{prefix}  {name}: {value}"
-            )
+                    pretty(item, indent + 1)
