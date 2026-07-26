@@ -94,7 +94,8 @@ class Parser:
         items = [self.expect(TokenType.IDENTIFIER).value]
         while self.match(TokenType.COMMA):
             if self.check(end_token):
-                break
+                self.expect(end_token)
+                return items
             items.append(
                 self.expect(TokenType.IDENTIFIER).value
             )
