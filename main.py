@@ -110,23 +110,23 @@ def _run_translation(tree, m_file, report):
 
 
 def _run_checks(py_file, report):
-    syntax_result = validate_python_file(py_file)
-    report["stages"]["syntax_check"] = syntax_result
-    if syntax_result["success"]:
-        print("    Python syntax valid")
-    else:
-        print("    Python syntax error")
-        print(f"      {syntax_result['error']}")
+    checks = [
+        ("syntax_check", validate_python_file, "Python syntax valid", "Python syntax error"),
+        ("compile_check", compile_python_file, "Python compile valid", "Python compile failed"),
+    ]
 
-    compile_result = compile_python_file(py_file)
-    report["stages"]["compile_check"] = compile_result
-    if compile_result["success"]:
-        print("    Python compile valid")
-    else:
-        print("    Python compile failed")
-        print(f"      {compile_result['error']}")
+    report["success"] = True
+    for stage_name, check_fn, success_message, failure_message in checks:
+        result = check_fn(py_file)
+        report["stages"][stage_name] = result
 
-    report["success"] = syntax_result["success"] and compile_result["success"]
+        if result["success"]:
+            print(f"    {success_message}")
+            continue
+
+        print(f"    {failure_message}")
+        print(f"      {result['error']}")
+        report["success"] = False
 
 
 def convert_file(m_file):
@@ -168,17 +168,9 @@ def convert_directory(directory):
         return
 
     print(f"Found {len(matlab_files)} MATLAB files")
-    reports = []
-    successful = 0
-    failed = 0
-
-    for m_file in matlab_files:
-        result = convert_file(m_file)
-        reports.append(result)
-        if result["success"]:
-            successful += 1
-        else:
-            failed += 1
+    reports = [convert_file(m_file) for m_file in matlab_files]
+    successful = sum(result["success"] for result in reports)
+    failed = len(reports) - successful
 
     report_file = Path("conversion_report.json")
     report_file.write_text(json.dumps(reports, indent=4), encoding="utf-8")
