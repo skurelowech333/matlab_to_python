@@ -165,8 +165,8 @@ class Lexer:
         start_line = self.line
         start_col = self.column
 
-        decimal = False
         value = ""
+        decimal = False
 
         while True:
             char = self.current()
