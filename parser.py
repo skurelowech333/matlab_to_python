@@ -87,6 +87,36 @@ class Parser:
         while self.match(TokenType.NEWLINE):
             pass
 
+    def _parse_identifiers_until(self, end_token):
+        items = []
+        while not self.check(end_token):
+            items.append(
+                self.expect(TokenType.IDENTIFIER).value
+            )
+            self.match(TokenType.COMMA)
+        self.expect(end_token)
+        return items
+
+    def _parse_parameter_list(self):
+        self.expect(TokenType.LPAREN)
+        inputs = self._parse_identifiers_until(TokenType.RPAREN)
+        return inputs
+
+    def _parse_block_body(self):
+        body = []
+        self.skip_newlines()
+
+        while not (
+            self.check(TokenType.END)
+            or self.check(TokenType.EOF)
+        ):
+            statement = self.statement()
+            if statement is not None:
+                body.append(statement)
+            self.skip_newlines()
+
+        return body
+
     def make_node(self, node, token=None):
         if token is None:
             token = self.current()
@@ -202,19 +232,7 @@ class Parser:
                 function_name = first
 
         elif self.match(TokenType.LBRACKET):
-            while not self.check(TokenType.RBRACKET):
-                outputs.append(
-                    self.expect(
-                        TokenType.IDENTIFIER
-                    ).value
-                )
-                self.match(
-                    TokenType.COMMA
-                )
-
-            self.expect(
-                TokenType.RBRACKET
-            )
+            outputs = self._parse_identifiers_until(TokenType.RBRACKET)
             self.expect(
                 TokenType.ASSIGN
             )
@@ -228,25 +246,7 @@ class Parser:
                 TokenType.IDENTIFIER
             ).value
 
-        inputs = []
-
-        self.expect(
-            TokenType.LPAREN
-        )
-
-        while not self.check(TokenType.RPAREN):
-            inputs.append(
-                self.expect(
-                    TokenType.IDENTIFIER
-                ).value
-            )
-            if not self.match(TokenType.COMMA):
-                break
-
-        self.expect(
-            TokenType.RPAREN
-        )
-
+        inputs = self._parse_parameter_list()
         body = self.block()
 
         return self.make_node(
@@ -264,22 +264,7 @@ class Parser:
     # ======================================================
 
     def block(self):
-        body = []
-        self.skip_newlines()
-
-        while not (
-            self.check(TokenType.END)
-            or self.check(TokenType.EOF)
-        ):
-            statement = self.statement()
-
-            if statement is not None:
-                body.append(
-                    statement
-                )
-
-            self.skip_newlines()
-
+        body = self._parse_block_body()
         if self.check(TokenType.END):
             self.advance()
 

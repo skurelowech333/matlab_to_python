@@ -65,7 +65,6 @@ NUMPY_FUNCTIONS = {
     "diag": "np.diag",
     "trace": "np.trace",
     "sort": "np.sort",
-    "sortrows": "np.sort",
     "unique": "np.unique",
     "find": "np.where",
     # Linear algebra
@@ -96,7 +95,6 @@ NUMPY_FUNCTIONS = {
     "cumprod": "np.cumprod",
     "diff": "np.diff",
     # Sorting
-    "sort": "np.sort",
     "sortrows": "np.lexsort",
     # Other utilities
     "any": "np.any",
