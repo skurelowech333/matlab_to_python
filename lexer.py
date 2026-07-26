@@ -51,9 +51,6 @@ class Lexer:
 
         self.length = len(source)
 
-        # Keep generated tokens for debugging/parser context
-        self.tokens = []
-
 
     # ======================================================
     # Character utilities
@@ -96,11 +93,24 @@ class Lexer:
         return char
 
 
-    def add_token(self, token):
+    def _append(self, token, tokens):
+        """Append a token to the output list."""
+        tokens.append(token)
 
-        self.tokens.append(token)
+    def read_while(self, predicate):
+        """Read characters while predicate(char) stays true."""
+        value = ""
+        while True:
+            char = self.current()
+            if char is None or not predicate(char):
+                break
+            value += char
+            self.advance()
+        return value
 
-        return token
+    def skip_while(self, predicate):
+        """Advance while predicate(char) stays true without collecting text."""
+        self.read_while(predicate)
 
 
 
@@ -109,21 +119,7 @@ class Lexer:
     # ======================================================
 
     def skip_whitespace(self):
-
-        while True:
-
-            char = self.current()
-
-            if char is None:
-                break
-
-            if char in " \t\r":
-
-                self.advance()
-
-            else:
-
-                break
+        self.skip_while(lambda char: char in " \t\r")
 
 
 
@@ -136,24 +132,9 @@ class Lexer:
         start_line = self.line
         start_col = self.column
 
-        value = ""
-
-        while True:
-
-            char = self.current()
-
-            if char is None:
-                break
-
-            if char.isalnum() or char == "_":
-
-                value += char
-
-                self.advance()
-
-            else:
-
-                break
+        value = self.read_while(
+            lambda char: char.isalnum() or char == "_"
+        )
 
 
         token_type = KEYWORDS.get(
@@ -181,36 +162,18 @@ class Lexer:
         start_col = self.column
 
         value = ""
-
         decimal = False
 
-
         while True:
-
             char = self.current()
-
             if char is None:
                 break
-
-
-            if char.isdigit():
-
+            if char.isdigit() or (char == "." and not decimal):
+                if char == ".":
+                    decimal = True
                 value += char
-
                 self.advance()
-
-
-            elif char == "." and not decimal:
-
-                decimal = True
-
-                value += char
-
-                self.advance()
-
-
             else:
-
                 break
 
 
@@ -251,21 +214,7 @@ class Lexer:
         start_line = self.line
         start_col = self.column
 
-        value = ""
-
-
-        while True:
-
-            char = self.current()
-
-            if char is None or char == "\n":
-
-                break
-
-
-            value += char
-
-            self.advance()
+        value = self.read_while(lambda char: char != "\n")
 
 
 
@@ -351,10 +300,7 @@ class Lexer:
                     self.line,
                     self.column
                 )
-
-                tokens.append(
-                    self.add_token(token)
-                )
+                self._append(token, tokens)
 
                 self.advance()
 
@@ -368,9 +314,7 @@ class Lexer:
 
                 token = self.read_comment()
 
-                tokens.append(
-                    self.add_token(token)
-                )
+                self._append(token, tokens)
 
                 continue
 
@@ -382,9 +326,7 @@ class Lexer:
 
                 token = self.read_identifier()
 
-                tokens.append(
-                    self.add_token(token)
-                )
+                self._append(token, tokens)
 
                 continue
 
@@ -396,9 +338,7 @@ class Lexer:
 
                 token = self.read_number()
 
-                tokens.append(
-                    self.add_token(token)
-                )
+                self._append(token, tokens)
 
                 continue
 
@@ -411,9 +351,7 @@ class Lexer:
 
             if token:
 
-                tokens.append(
-                    self.add_token(token)
-                )
+                self._append(token, tokens)
 
                 continue
 
@@ -434,10 +372,7 @@ class Lexer:
             self.column
         )
 
-
-        tokens.append(
-            self.add_token(eof)
-        )
+        self._append(eof, tokens)
 
 
         return tokens

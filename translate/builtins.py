@@ -95,9 +95,6 @@ NUMPY_FUNCTIONS = {
     "cumsum": "np.cumsum",
     "cumprod": "np.cumprod",
     "diff": "np.diff",
-    # Sorting
-    "sort": "np.sort",
-    "sortrows": "np.lexsort",
     # Other utilities
     "any": "np.any",
     "all": "np.all",

@@ -31,6 +31,14 @@ class Translator:
             "    " * self.indent + text
         )
 
+    def emit_body(self, statements, empty="pass"):
+        """Emit a statement block, or a fallback line when the block is empty."""
+        if not statements:
+            self.emit(empty)
+            return
+        for statement in statements:
+            self.visit(statement)
+
     def result(self):
         return "\n".join(self.lines)
 
@@ -106,13 +114,7 @@ class Translator:
             f"def {node.name}({args}):"
         )
         self.indent += 1
-        if not node.body:
-            self.emit(
-                "pass"
-            )
-        else:
-            for statement in node.body:
-                self.visit(statement)
+        self.emit_body(node.body)
         if node.outputs:
             self.emit()
             if len(node.outputs) == 1:
@@ -220,11 +222,7 @@ class Translator:
             f"while {condition}:"
         )
         self.indent += 1
-        if not node.body:
-            self.emit("pass")
-        else:
-            for statement in node.body:
-                self.visit(statement)
+        self.emit_body(node.body)
         self.indent -= 1
 
     # ======================================================
@@ -239,19 +237,14 @@ class Translator:
             f"if {condition}:"
         )
         self.indent += 1
-        if not node.body:
-            self.emit("pass")
-        else:
-            for statement in node.body:
-                self.visit(statement)
+        self.emit_body(node.body)
         self.indent -= 1
         for elseif_block in node.elseif_blocks:
             self.visit_ElseIf(elseif_block)
         if node.else_body:
             self.emit("else:")
             self.indent += 1
-            for statement in node.else_body:
-                self.visit(statement)
+            self.emit_body(node.else_body)
             self.indent -= 1
 
     def visit_ElseIf(self, node):
@@ -262,11 +255,7 @@ class Translator:
             f"elif {condition}:"
         )
         self.indent += 1
-        if not node.body:
-            self.emit("pass")
-        else:
-            for statement in node.body:
-                self.visit(statement)
+        self.emit_body(node.body)
         self.indent -= 1
 
     def visit_Switch(self, node):
@@ -287,32 +276,22 @@ class Translator:
                     f"elif {expr} == {case_val}:"
                 )
             self.indent += 1
-            for statement in case.body:
-                self.visit(statement)
+            self.emit_body(case.body)
             self.indent -= 1
         if node.default_body:
             self.emit("else:")
             self.indent += 1
-            for statement in node.default_body:
-                self.visit(statement)
+            self.emit_body(node.default_body)
             self.indent -= 1
 
     def visit_Try(self, node):
         self.emit("try:")
         self.indent += 1
-        if not node.body:
-            self.emit("pass")
-        else:
-            for statement in node.body:
-                self.visit(statement)
+        self.emit_body(node.body)
         self.indent -= 1
         self.emit("except Exception as e:")
         self.indent += 1
-        if not node.catch_body:
-            self.emit("pass")
-        else:
-            for statement in node.catch_body:
-                self.visit(statement)
+        self.emit_body(node.catch_body)
         self.indent -= 1
 
     # ======================================================
@@ -425,31 +404,6 @@ class Translator:
             f"{node.operator}{operand}"
         )
 
-
-    def convert_operator(self, node):
-        op = node.operator
-        mapping = {
-            # element-wise
-            ".*": "*",
-            "./": "/",
-            ".^": "**",
-
-            # logical
-            "&&": "and",
-            "||": "or",
-            "~=": "!=",
-
-            # MATLAB matrix multiplication
-            "*": "@",
-
-            # power
-            "^": "**",
-        }
-
-        return mapping.get(
-            op,
-            op
-        )
 
     def convert_operator(self, node):
         op = node.operator
