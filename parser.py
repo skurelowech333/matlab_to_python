@@ -88,12 +88,15 @@ class Parser:
             pass
 
     def _parse_identifiers_until(self, end_token):
-        items = []
-        while not self.check(end_token):
+        items = [
+            self.expect(TokenType.IDENTIFIER).value
+        ]
+        while self.match(TokenType.COMMA):
+            if self.check(end_token):
+                break
             items.append(
                 self.expect(TokenType.IDENTIFIER).value
             )
-            self.match(TokenType.COMMA)
         self.expect(end_token)
         return items
 
