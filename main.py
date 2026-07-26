@@ -115,6 +115,10 @@ def _run_checks(py_file, report):
         ("compile_check", compile_python_file, "Python compile valid", "Python compile failed"),
     ]
 
+    if not checks:
+        report["success"] = False
+        return
+
     report["success"] = True
     for stage_name, check_fn, success_message, failure_message in checks:
         result = check_fn(py_file)
