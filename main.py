@@ -115,21 +115,19 @@ def _run_checks(py_file, report):
         ("compile_check", compile_python_file, "Python compile valid", "Python compile failed"),
     ]
 
-    if not checks:
-        report["success"] = False
-        return
-
-    report["success"] = True
+    check_results = []
     for stage_name, check_fn, success_message, failure_message in checks:
         result = check_fn(py_file)
         report["stages"][stage_name] = result
+        check_results.append(result["success"])
 
         if result["success"]:
             print(f"    {success_message}")
         else:
             print(f"    {failure_message}")
             print(f"      {result['error']}")
-            report["success"] = False
+
+    report["success"] = all(check_results)
 
 
 def convert_file(m_file):
