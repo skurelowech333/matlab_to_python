@@ -51,9 +51,6 @@ class Lexer:
 
         self.length = len(source)
 
-        # Keep generated tokens for debugging/parser context
-        self.tokens = []
-
 
     # ======================================================
     # Character utilities
@@ -98,7 +95,6 @@ class Lexer:
 
     def _append(self, token, tokens):
         """Append a token to the output list after registering it."""
-        self.tokens.append(token)
         tokens.append(token)
 
     def read_while(self, predicate):
@@ -112,6 +108,10 @@ class Lexer:
             self.advance()
         return value
 
+    def skip_while(self, predicate):
+        """Advance while predicate(char) stays true without collecting text."""
+        self.read_while(predicate)
+
 
 
     # ======================================================
@@ -119,7 +119,7 @@ class Lexer:
     # ======================================================
 
     def skip_whitespace(self):
-        self.read_while(lambda char: char in " \t\r")
+        self.skip_while(lambda char: char in " \t\r")
 
 
 
