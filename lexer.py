@@ -96,13 +96,9 @@ class Lexer:
         return char
 
 
-    def add_token(self, token):
-
-        self.tokens.append(token)
-
     def _append(self, token, tokens):
         """Append a token to the output list after registering it."""
-        self.add_token(token)
+        self.tokens.append(token)
         tokens.append(token)
 
     def read_while(self, predicate):
