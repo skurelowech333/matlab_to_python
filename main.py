@@ -122,11 +122,10 @@ def _run_checks(py_file, report):
 
         if result["success"]:
             print(f"    {success_message}")
-            continue
-
-        print(f"    {failure_message}")
-        print(f"      {result['error']}")
-        report["success"] = False
+        else:
+            print(f"    {failure_message}")
+            print(f"      {result['error']}")
+            report["success"] = False
 
 
 def convert_file(m_file):
