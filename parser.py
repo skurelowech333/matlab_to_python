@@ -88,9 +88,10 @@ class Parser:
             pass
 
     def _parse_identifiers_until(self, end_token):
-        items = [
-            self.expect(TokenType.IDENTIFIER).value
-        ]
+        if self.check(end_token):
+            return []
+
+        items = [self.expect(TokenType.IDENTIFIER).value]
         while self.match(TokenType.COMMA):
             if self.check(end_token):
                 break
@@ -101,11 +102,13 @@ class Parser:
         return items
 
     def _parse_parameter_list(self):
+        """Parse a parenthesized, comma-separated parameter list."""
         self.expect(TokenType.LPAREN)
         inputs = self._parse_identifiers_until(TokenType.RPAREN)
         return inputs
 
     def _parse_block_body(self):
+        """Parse statements until END or EOF and return the collected body."""
         body = []
         self.skip_newlines()
 

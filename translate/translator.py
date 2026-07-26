@@ -32,6 +32,7 @@ class Translator:
         )
 
     def emit_body(self, statements, empty="pass"):
+        """Emit a statement block, or a fallback line when the block is empty."""
         if not statements:
             self.emit(empty)
             return

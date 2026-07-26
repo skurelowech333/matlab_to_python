@@ -103,10 +103,12 @@ class Lexer:
         return token
 
     def _append(self, token, tokens):
+        """Append a token to the output list after registering it."""
         tokens.append(self.add_token(token))
         return token
 
     def read_while(self, predicate):
+        """Read characters while predicate(char) stays true."""
         value = ""
         while True:
             char = self.current()
@@ -173,7 +175,8 @@ class Lexer:
             if char is None:
                 break
             if char.isdigit() or (char == "." and not decimal):
-                decimal = decimal or char == "."
+                if char == ".":
+                    decimal = True
                 value += char
                 self.advance()
             else:
