@@ -127,7 +127,7 @@ def _run_checks(py_file, report):
             print(f"    {failure_message}")
             print(f"      {result['error']}")
 
-    report["success"] = all(check_results)
+    report["success"] = bool(check_results) and all(check_results)
 
 
 def convert_file(m_file):
