@@ -94,7 +94,7 @@ class Lexer:
 
 
     def _append(self, token, tokens):
-        """Append a token to the output list after registering it."""
+        """Append a token to the output list."""
         tokens.append(token)
 
     def read_while(self, predicate):

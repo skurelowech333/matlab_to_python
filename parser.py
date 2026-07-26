@@ -94,7 +94,7 @@ class Parser:
         items = [self.expect(TokenType.IDENTIFIER).value]
         while self.match(TokenType.COMMA):
             if self.check(end_token):
-                raise SyntaxError("Trailing comma in identifier list")
+                raise SyntaxError("Trailing comma in comma-separated identifier list")
             items.append(
                 self.expect(TokenType.IDENTIFIER).value
             )
