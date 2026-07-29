@@ -47,7 +47,11 @@ from abstract_syntax_tree import (
     Break,
     Continue,
     PropertyBlock,
-    ClassDef
+    ClassDef,
+    CellArray,
+    Lambda,
+    Return,
+    Try,
 )
 
 FUNCTION_LIKE = {
@@ -211,7 +215,21 @@ class Parser:
         if self.check(TokenType.CONTINUE):
             token = self.advance()
             return self.make_node(Continue(), token)
-        
+
+        if self.check(TokenType.RETURN):
+            token = self.advance()
+            return self.make_node(Return(values=[]), token)
+
+        if self.check(TokenType.GLOBAL) or self.check(TokenType.PERSISTENT):
+            # Skip global/persistent declarations
+            self.advance()
+            while (
+                self.check(TokenType.IDENTIFIER)
+                or self.check(TokenType.COMMA)
+            ):
+                self.advance()
+            return None
+
         if self.check(TokenType.CLASSDEF):
             return self.classdef()
 
@@ -393,19 +411,42 @@ class Parser:
 
         start = self.expression()
 
-        self.expect(
-            TokenType.COLON
-        )
+        # Check for range syntax (start:stop or start:step:stop)
+        if self.check(TokenType.COLON):
+            self.advance()  # consume first ':'
+            second = self.expression()
 
-        stop = self.expression()
+            # Check for optional step: start:step:stop
+            if self.check(TokenType.COLON):
+                self.advance()  # consume second ':'
+                stop = self.expression()
+                step = second
+            else:
+                stop = second
+                step = None
 
+            body = self.block()
+
+            return self.make_node(
+                For(
+                    variable=variable,
+                    start=start,
+                    stop=stop,
+                    step=step,
+                    body=body
+                ),
+                token
+            )
+
+        # Array / vector iteration: for x = array
         body = self.block()
 
         return self.make_node(
             For(
                 variable=variable,
                 start=start,
-                stop=stop,
+                stop=None,
+                step=None,
                 body=body
             ),
             token
@@ -561,8 +602,6 @@ class Parser:
         # Consume the final 'end' if present
         if self.check(TokenType.END):
             self.advance()
-    
-        from abstract_syntax_tree import Try  # if not already imported at top
     
         return self.make_node(
             Try(
@@ -767,7 +806,18 @@ class Parser:
                 ),
                 token
             )
-    
+
+        if self.check(TokenType.NOT):
+
+            token = self.advance()
+
+            return self.make_node(
+                UnaryOp(
+                    operator="~",
+                    operand=self.unary()
+                ),
+                token
+            )
     
         return self.postfix()
 
@@ -797,6 +847,23 @@ class Parser:
                 )
                 continue
     
+            # ---------------------------------
+            # Curly brace: cell array indexing c{i}
+            # ---------------------------------
+            if self.check(TokenType.LBRACE):
+                self.advance()  # consume '{'
+
+                arguments = self.parse_indices()
+                self.expect(TokenType.RBRACE)
+
+                node = self.make_node(
+                    Index(
+                        value=node,
+                        indices=arguments
+                    )
+                )
+                continue
+
             # ---------------------------------
             # Parentheses: call or indexing
             # ---------------------------------
@@ -991,6 +1058,45 @@ class Parser:
         if token.type == TokenType.STRING:
             return self.make_node(
                 String(value=token.value),
+                token
+            )
+
+        # ------------------------------
+        # Lambda / anonymous function: @(x, y) expr
+        # ------------------------------
+        if token.type == TokenType.AT:
+            self.expect(TokenType.LPAREN)
+            params = []
+            while not self.check(TokenType.RPAREN):
+                params.append(
+                    self.expect(TokenType.IDENTIFIER).value
+                )
+                if not self.match(TokenType.COMMA):
+                    break
+            self.expect(TokenType.RPAREN)
+            body = self.expression()
+            return self.make_node(
+                Lambda(parameters=params, body=body),
+                token
+            )
+
+        # ------------------------------
+        # Cell array literal: {1, 2, 3}
+        # ------------------------------
+        if token.type == TokenType.LBRACE:
+            elements = []
+            while not self.check(TokenType.RBRACE):
+                if self.check(TokenType.NEWLINE):
+                    self.advance()
+                    continue
+                if self.check(TokenType.SEMICOLON):
+                    self.advance()
+                    continue
+                elements.append(self.expression())
+                self.match(TokenType.COMMA)
+            self.expect(TokenType.RBRACE)
+            return self.make_node(
+                CellArray(rows=[elements]),
                 token
             )
 

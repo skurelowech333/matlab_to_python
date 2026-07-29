@@ -237,19 +237,20 @@ class Translator:
     # ======================================================
 
     def visit_For(self, node):
-        start = self.visit(
-            node.start
-        )
-        stop = self.visit(
-            node.stop
-        )
-        step = ""
-        if node.step:
-            step_val = self.visit(node.step)
-            step = f", {step_val}"
-        self.emit(
-            f"for {node.variable} in range({start}, {stop}+1{step}):"
-        )
+        if node.stop is None:
+            # Array / vector iteration: for x = array
+            iterable = self.visit(node.start)
+            self.emit(f"for {node.variable} in {iterable}:")
+        else:
+            start = self.visit(node.start)
+            stop = self.visit(node.stop)
+            step = ""
+            if node.step:
+                step_val = self.visit(node.step)
+                step = f", {step_val}"
+            self.emit(
+                f"for {node.variable} in range({start}, {stop}+1{step}):"
+            )
         self.indent += 1
         for statement in node.body:
             self.visit(statement)
@@ -507,20 +508,15 @@ class Translator:
             -5
             -x
             -(a+b)
-
-        MATLAB AST:
-            UnaryOp(
-                operator="-",
-                operand=Number(5)
-            )
-
-        Python:
-            -5
+            ~x (logical not)
         """
 
         operand = self.visit(
             node.operand
         )
+
+        if node.operator == "~":
+            return f"not {operand}"
 
         return (
             f"{node.operator}{operand}"
@@ -564,6 +560,17 @@ class Translator:
         else:
             name = None
             func_name = self.visit(node.function)
+
+        # When any argument is a Slice, MATLAB is using array-indexing syntax:
+        # A(:, 2) or A(1:3, :) — translate to Python bracket indexing.
+        if any(isinstance(arg, Slice) for arg in node.arguments):
+            indices = []
+            for index in node.arguments:
+                if isinstance(index, Slice):
+                    indices.append(convert_slice(index))
+                else:
+                    indices.append(convert_index(index))
+            return f"{func_name}[{','.join(indices)}]"
     
         # Special-case array creation: zeros, ones, etc.
         if name in {"zeros", "ones"}:
@@ -576,10 +583,36 @@ class Translator:
                 # e.g. zeros(1,10) -> np.zeros((1,10))
                 dims = ", ".join(self.visit(a) for a in node.arguments)
                 return f"{func_name}(({dims}))"
+
+        # Special-case max/min with 2 args: MATLAB max(a,b) is element-wise max
+        # numpy equivalent is np.maximum / np.minimum
+        if name in {"max", "min"} and len(node.arguments) == 2:
+            a = self.visit(node.arguments[0])
+            b = self.visit(node.arguments[1])
+            numpy_func = "np.maximum" if name == "max" else "np.minimum"
+            return f"{numpy_func}({a}, {b})"
     
         # Default case: normal function call
         args = ", ".join(self.visit(x) for x in node.arguments)
         return f"{func_name}({args})"
+
+    # ======================================================
+    # Lambda / anonymous function
+    # ======================================================
+
+    def visit_Lambda(self, node):
+        params = ", ".join(node.parameters)
+        body = self.visit(node.body)
+        return f"lambda {params}: {body}"
+
+    # ======================================================
+    # Cell array literal
+    # ======================================================
+
+    def visit_CellArray(self, node):
+        all_elements = [elem for row in node.rows for elem in row]
+        elements = ", ".join(self.visit(e) for e in all_elements)
+        return f"[{elements}]"
     
     def map_function(self, name):
         return translate_builtin(name)
