@@ -217,6 +217,16 @@ class Lambda(Node):
 @dataclass
 class Comment(Node):
     text: str = ""
+    
+@dataclass
+class PropertyBlock(Node):
+    body: NodeList = field(default_factory=list)
+
+@dataclass
+class ClassDef(Node):
+    name: str = ""
+    properties: list[PropertyBlock] = field(default_factory=list)
+    methods: list[Function] = field(default_factory=list)
 
 
 # Utilities

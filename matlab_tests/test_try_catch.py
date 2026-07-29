@@ -2,6 +2,10 @@ import numpy as np
 
 # Test try-catch error handling
 
-result = (a / b)
-
-result = 0
+def test_try_catch(a, b):
+    try:
+        result = (a / b)
+    except Exception as e:
+        result = 0
+    
+    return result

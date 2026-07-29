@@ -314,6 +314,46 @@ class Lexer:
 
 
         return None
+    
+    def read_string(self):
+        start_line = self.line
+        start_col = self.column
+    
+        # Consume opening quote
+        self.advance()
+    
+        value = ""
+    
+        while True:
+            char = self.current()
+    
+            if char is None:
+                raise SyntaxError(
+                    f"Unterminated string literal at {start_line}:{start_col}"
+                )
+    
+            if char == "'":
+                # Possible end of string or escaped quote
+                self.advance()
+    
+                # MATLAB uses '' for a literal single quote inside a string
+                if self.current() == "'":
+                    value += "'"
+                    self.advance()
+                    continue
+    
+                # End of string
+                break
+    
+            value += char
+            self.advance()
+    
+        return Token(
+            TokenType.STRING,
+            value,
+            start_line,
+            start_col
+        )
 
 
 
@@ -401,7 +441,28 @@ class Lexer:
                 )
 
                 continue
-
+            
+            # strings vs transpose
+            if char == "'":
+                # Look at the previous non-whitespace character to distinguish
+                # string start (after '=', ',', '[', etc.) from transpose (after identifier, ')', ']').
+                prev_index = self.position - 1
+                while prev_index >= 0 and self.source[prev_index] in " \t\r":
+                    prev_index -= 1
+                prev_char = self.source[prev_index] if prev_index >= 0 else None
+            
+                if prev_char is None or prev_char in "=,[({;:\n ":
+                    # Treat as start of a string literal
+                    token = self.read_string()
+                    tokens.append(self.add_token(token))
+                    continue
+                else:
+                    # Treat as transpose operator
+                    token = self.read_operator()
+                    if token:
+                        tokens.append(self.add_token(token))
+                        continue
+            
 
 
             # operators

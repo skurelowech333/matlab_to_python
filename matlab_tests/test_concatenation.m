@@ -1,5 +1,5 @@
 % Test array concatenation
-function test_concatenation()
+function [C, D] = test_concatenation()
     A = [1, 2, 3];
     B = [4, 5, 6];
     C = [A, B];

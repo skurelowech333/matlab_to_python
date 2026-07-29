@@ -4,9 +4,9 @@ def matrix_test(x):
     # Matrix creation
     A = np.array([[1, 2], [3, 4]])
     # Matrix multiply
-    B = (A @ A)
+    B = (A * A)
     # Inverse
-    C = inv[A-1]
-    y = (C @ x)
+    C = np.linalg.inv(A)
+    y = (C * x)
     
     return y

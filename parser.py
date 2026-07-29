@@ -39,8 +39,23 @@ from abstract_syntax_tree import (
     Index,
     Slice,
     End,
+    FieldAccess,
+    While,
+    Switch,
+    Case,
+    ElseIf,
+    Break,
+    Continue,
+    PropertyBlock,
+    ClassDef
 )
 
+FUNCTION_LIKE = {
+    "sin", "cos", "tan",
+    "sqrt", "exp", "log",
+    "floor", "ceil", "round", "abs",
+    "zeros", "ones"
+}
 
 class Parser:
 
@@ -179,6 +194,26 @@ class Parser:
 
         if self.check(TokenType.IF):
             return self.if_statement()
+        
+        if self.check(TokenType.TRY):
+            return self.try_statement()
+        
+        if self.check(TokenType.WHILE):
+            return self.while_loop()
+        
+        if self.check(TokenType.SWITCH):
+            return self.switch_statement()
+        
+        if self.check(TokenType.BREAK):
+            token = self.advance()
+            return self.make_node(Break(), token)
+
+        if self.check(TokenType.CONTINUE):
+            token = self.advance()
+            return self.make_node(Continue(), token)
+        
+        if self.check(TokenType.CLASSDEF):
+            return self.classdef()
 
         return self.assignment_or_expression()
 
@@ -258,6 +293,60 @@ class Parser:
             ),
             token
         )
+    
+    def classdef(self):
+        token = self.expect(TokenType.CLASSDEF)
+        name = self.expect(TokenType.IDENTIFIER).value
+    
+        properties = []
+        methods = []
+    
+        self.skip_newlines()
+    
+        while not self.check(TokenType.END) and not self.check(TokenType.EOF):
+    
+            # PROPERTIES block
+            if self.check(TokenType.PROPERTIES):
+                self.advance()  # consume 'properties'
+                prop_body = self.block()  # up to 'end' of properties
+                properties.append(
+                    self.make_node(
+                        PropertyBlock(body=prop_body),
+                        token
+                    )
+                )
+                self.skip_newlines()
+                continue
+    
+            # METHODS block
+            if self.check(TokenType.METHODS):
+                self.advance()  # consume 'methods'
+                method_body = self.block()  # up to 'end' of methods
+    
+                # Keep only Function nodes as methods
+                for stmt in method_body:
+                    if isinstance(stmt, Function):
+                        methods.append(stmt)
+    
+                self.skip_newlines()
+                continue
+    
+            # Anything else inside classdef: skip/recover
+            self.recover_statement()
+            self.skip_newlines()
+    
+        # Consume final 'end' for classdef
+        if self.check(TokenType.END):
+            self.advance()
+    
+        return self.make_node(
+            ClassDef(
+                name=name,
+                properties=properties,
+                methods=methods
+            ),
+            token
+        )
 
     # ======================================================
     # Blocks
@@ -321,23 +410,251 @@ class Parser:
             ),
             token
         )
+    
+
+    def while_loop(self):
+        token = self.expect(TokenType.WHILE)
+    
+        # Parse the condition expression on the while line
+        condition = self.expression()
+    
+        # Parse the loop body until 'end'
+        body = self.block()
+    
+        return self.make_node(
+            While(
+                condition=condition,
+                body=body
+            ),
+            token
+        )
 
     # ======================================================
     # If
     # ======================================================
 
+
     def if_statement(self):
-        token = self.expect(
-            TokenType.IF
-        )
-
+        # Consume 'if'
+        token = self.expect(TokenType.IF)
+    
+        # Parse condition after 'if'
         condition = self.expression()
-        body = self.block()
-
+        self.skip_newlines()
+    
+        # ---- IF body ----
+        body = []
+        while (
+            not self.check(TokenType.ELSEIF)
+            and not self.check(TokenType.ELSE)
+            and not self.check(TokenType.END)
+            and not self.check(TokenType.EOF)
+        ):
+            stmt = self.statement()
+            if stmt is not None:
+                body.append(stmt)
+            self.skip_newlines()
+    
+        # ---- ELSEIF blocks ----
+        elseif_blocks = []
+        while self.check(TokenType.ELSEIF):
+            self.advance()  # consume 'elseif'
+            elseif_cond = self.expression()
+            self.skip_newlines()
+    
+            elseif_body = []
+            while (
+                not self.check(TokenType.ELSEIF)
+                and not self.check(TokenType.ELSE)
+                and not self.check(TokenType.END)
+                and not self.check(TokenType.EOF)
+            ):
+                stmt = self.statement()
+                if stmt is not None:
+                    elseif_body.append(stmt)
+                self.skip_newlines()
+    
+            elseif_blocks.append(
+                self.make_node(
+                    ElseIf(
+                        condition=elseif_cond,
+                        body=elseif_body
+                    ),
+                    token
+                )
+            )
+    
+        # ---- ELSE body (optional) ----
+        else_body = []
+        if self.check(TokenType.ELSE):
+            self.advance()  # consume 'else'
+            self.skip_newlines()
+    
+            while (
+                not self.check(TokenType.END)
+                and not self.check(TokenType.EOF)
+            ):
+                stmt = self.statement()
+                if stmt is not None:
+                    else_body.append(stmt)
+                self.skip_newlines()
+    
+        # Consume final 'end'
+        if self.check(TokenType.END):
+            self.advance()
+    
         return self.make_node(
             If(
                 condition=condition,
-                body=body
+                body=body,
+                elseif_blocks=elseif_blocks,
+                else_body=else_body
+            ),
+            token
+        )
+    # ======================================================
+    # Try
+    # ======================================================
+
+    def try_statement(self):
+        # Consume 'try'
+        token = self.expect(TokenType.TRY)
+    
+        # ---- TRY BODY ----
+        try_body = []
+        self.skip_newlines()
+    
+        # Collect statements until 'catch' or 'end'
+        while (
+            not self.check(TokenType.CATCH)
+            and not self.check(TokenType.END)
+            and not self.check(TokenType.EOF)
+        ):
+            stmt = self.statement()
+            if stmt is not None:
+                try_body.append(stmt)
+            self.skip_newlines()
+    
+        # ---- CATCH BODY (optional) ----
+        catch_body = []
+        catch_var = ""
+    
+        if self.check(TokenType.CATCH):
+            self.advance()  # consume 'catch'
+    
+            # Optional catch variable: catch ME
+            if self.check(TokenType.IDENTIFIER):
+                catch_var = self.advance().value
+    
+            self.skip_newlines()
+    
+            # Collect statements until 'end'
+            while (
+                not self.check(TokenType.END)
+                and not self.check(TokenType.EOF)
+            ):
+                stmt = self.statement()
+                if stmt is not None:
+                    catch_body.append(stmt)
+                self.skip_newlines()
+    
+        # Consume the final 'end' if present
+        if self.check(TokenType.END):
+            self.advance()
+    
+        from abstract_syntax_tree import Try  # if not already imported at top
+    
+        return self.make_node(
+            Try(
+                body=try_body,
+                catch_body=catch_body,
+                catch_var=catch_var,
+            ),
+            token,
+        )
+    
+    def switch_statement(self):
+        # 'switch' keyword
+        token = self.expect(TokenType.SWITCH)
+    
+        # Expression after 'switch'
+        expr = self.expression()
+    
+        cases = []
+        default_body = []
+    
+        self.skip_newlines()
+    
+        # Parse case/otherwise blocks until 'end' or EOF
+        while (
+            not self.check(TokenType.END)
+            and not self.check(TokenType.EOF)
+        ):
+            # CASE branch
+            if self.check(TokenType.CASE):
+                self.advance()  # consume 'case'
+                value = self.expression()
+                body = []
+    
+                self.skip_newlines()
+    
+                # Collect statements until next CASE / OTHERWISE / END / EOF
+                while (
+                    not self.check(TokenType.CASE)
+                    and not self.check(TokenType.OTHERWISE)
+                    and not self.check(TokenType.END)
+                    and not self.check(TokenType.EOF)
+                ):
+                    stmt = self.statement()
+                    if stmt is not None:
+                        body.append(stmt)
+                    self.skip_newlines()
+    
+                cases.append(
+                    self.make_node(
+                        Case(
+                            value=value,
+                            body=body
+                        ),
+                        token
+                    )
+                )
+                continue
+    
+            # OTHERWISE branch
+            if self.check(TokenType.OTHERWISE):
+                self.advance()  # consume 'otherwise'
+                default_body = []
+    
+                self.skip_newlines()
+    
+                while (
+                    not self.check(TokenType.END)
+                    and not self.check(TokenType.EOF)
+                ):
+                    stmt = self.statement()
+                    if stmt is not None:
+                        default_body.append(stmt)
+                    self.skip_newlines()
+    
+                # Only one 'otherwise' expected; break out
+                break
+    
+            # Fallback: let statement() handle unexpected tokens
+            stmt = self.statement()
+            if stmt is not None:
+                default_body.append(stmt)
+            self.skip_newlines()
+    
+        # Consume final 'end' if present
+        if self.check(TokenType.END):
+            self.advance()
+    
+        return self.make_node(
+            Switch(
+                expression=expr,
+                cases=cases,
+                default_body=default_body
             ),
             token
         )
@@ -460,29 +777,57 @@ class Parser:
 
     def postfix(self):
         """
-        Handle postfix operations: indexing and function calls.
-        MATLAB uses () for both, but we need to distinguish:
-        - func(args) -> function call
-        - A(i,j) -> array indexing
+        Handle postfix operations: field access, indexing, and function calls.
+        MATLAB uses () for both calls and indexing.
         """
         node = self.primary()
-
+    
         while True:
-            # Array indexing: A(i,j)
+            # ---------------------------------
+            # Field access: obj.field
+            # ---------------------------------
+            if self.check(TokenType.DOT):
+                self.advance()  # consume '.'
+                field = self.expect(TokenType.IDENTIFIER).value
+                node = self.make_node(
+                    FieldAccess(
+                        value=node,
+                        field=field
+                    )
+                )
+                continue
+    
+            # ---------------------------------
+            # Parentheses: call or indexing
+            # ---------------------------------
             if self.check(TokenType.LPAREN):
                 self.advance()
-                indices = self.parse_indices()
+    
+                # Parse contents once
+                arguments = self.parse_indices()
                 self.expect(TokenType.RPAREN)
-                
+    
+                # Function / method call: foo(x), sqrt(a-1), obj.foo(x)
+                if isinstance(node, Identifier) or isinstance(node, FieldAccess):
+                    node = self.make_node(
+                        Call(
+                            function=node,
+                            arguments=arguments
+                        )
+                    )
+                    continue
+    
+                # Otherwise, treat as array indexing: A(i,j)
                 node = self.make_node(
                     Index(
                         value=node,
-                        indices=indices
+                        indices=arguments
                     )
                 )
-            else:
-                break
-
+                continue
+    
+            break
+    
         return node
 
     def parse_indices(self):
@@ -639,6 +984,15 @@ class Parser:
                 TokenType.RPAREN
             )
             return expression
+        
+        # ------------------------------
+        # String
+        # ------------------------------
+        if token.type == TokenType.STRING:
+            return self.make_node(
+                String(value=token.value),
+                token
+            )
 
         raise SyntaxError(
             f"Unexpected token {token}"

@@ -21,6 +21,7 @@ class Translator:
     def __init__(self):
         self.lines = []
         self.indent = 0
+        self.in_class = False
 
     # ======================================================
     # Helpers
@@ -99,33 +100,75 @@ class Translator:
     # ======================================================
 
     def visit_Function(self, node):
-        args = ", ".join(
-            node.inputs
-        )
-        self.emit(
-            f"def {node.name}({args}):"
-        )
+        method_name = node.name
+    
+        # ==========================================
+        # MATLAB class methods
+        # ==========================================
+        if self.in_class:
+            # Constructor:
+            # MATLAB: function obj = ClassName(args)
+            # Python: def __init__(self, args)
+            if node.name == self.class_name:
+                method_name = "__init__"
+                args = ", ".join(["self"] + node.inputs)
+    
+            # Normal class method:
+            # MATLAB: function obj = foo(obj, a, b)
+            # Python: def foo(self, a, b)
+            else:
+                if node.inputs and node.inputs[0] == "obj":
+                    method_inputs = node.inputs[1:]
+                else:
+                    method_inputs = node.inputs
+                args = ", ".join(["self"] + method_inputs)
+    
+        # ==========================================
+        # Normal MATLAB functions
+        # ==========================================
+        else:
+            args = ", ".join(node.inputs)
+    
+        self.emit(f"def {method_name}({args}):")
         self.indent += 1
+    
         if not node.body:
-            self.emit(
-                "pass"
-            )
+            self.emit("pass")
         else:
             for statement in node.body:
                 self.visit(statement)
-        if node.outputs:
+    
+        # ==========================================
+        # Return values
+        # ==========================================
+        # Constructors and methods returning 'obj' normally don't
+        # return in Python; they mutate self.
+        if (
+            node.outputs
+            and not (
+                self.in_class
+                and (
+                    method_name == "__init__"
+                    or node.outputs == ["obj"]
+                )
+            )
+        ):
             self.emit()
             if len(node.outputs) == 1:
-                self.emit(
-                    f"return {node.outputs[0]}"
-                )
+                self.emit(f"return {node.outputs[0]}")
             else:
-                self.emit(
-                    "return "
-                    +
-                    ", ".join(node.outputs)
-                )
+                self.emit("return " + ", ".join(node.outputs))
+    
         self.indent -= 1
+        
+    def visit_FieldAccess(self, node):
+        value = self.visit(node.value)
+    
+        # MATLAB object variable: obj.mass -> self.mass
+        if value == "obj":
+            value = "self"
+    
+        return f"{value}.{node.field}"
 
     # ======================================================
     # Statements
@@ -323,14 +366,17 @@ class Translator:
         constants = {
             "pi": "np.pi",
             "inf": "np.inf",
+            "Inf": "np.inf",
             "NaN": "np.nan",
-            "i": "1j",
-            "j": "1j",
+            "nan": "np.nan",
+            # MATLAB logicals
+            "true": "True",
+            "false": "False",
+            "True": "True",
+            "False": "False",
+            "nargin": "len(locals())",
         }
-        return constants.get(
-            node.name,
-            node.name
-        )
+        return constants.get(node.name, node.name)
 
     def visit_Number(self, node):
         if float(node.value).is_integer():
@@ -343,37 +389,92 @@ class Translator:
         return repr(
             node.value
         )
+    
+    def visit_ClassDef(self, node):
+        # Emit class header
+        self.emit(f"class {node.name}:")
+        self.indent += 1
+    
+        # Mark class context so visit_Function can treat constructors specially
+        self.in_class = True
+        self.class_name = node.name
+    
+        # ------------------------------------------
+        # Class properties: turn each property name
+        # into a class attribute with default None
+        # ------------------------------------------
+        if node.properties:
+            for prop_block in node.properties:
+                for stmt in prop_block.body:
+                    if isinstance(stmt, ExpressionStatement):
+                        if isinstance(stmt.expression, Identifier):
+                            self.emit(f"{stmt.expression.name} = None")
+    
+        # ------------------------------------------
+        # Methods
+        # ------------------------------------------
+        if node.methods:
+            self.emit()  # blank line after properties
+            for method in node.methods:
+                self.visit(method)
+                self.emit()
+        else:
+            # No methods: emit 'pass' to make class valid Python
+            self.emit("pass")
+    
+        # Restore context
+        self.indent -= 1
+        self.in_class = False
+        self.class_name = None
 
     # ======================================================
     # Matrix
     # ======================================================
 
     def visit_Matrix(self, node):
+        # --------------------------------------------------
+        # Case 1: vertical stacking of row vectors
+        # MATLAB: D = [A; B];
+        # Python: D = np.vstack((A, B))
+        # --------------------------------------------------
+        if all(len(row) == 1 for row in node.rows):
+            first_elems = [row[0] for row in node.rows]
+            # Each row is a single identifier, e.g. [A; B; C]
+            if all(isinstance(x, Identifier) for x in first_elems):
+                parts = [self.visit(x) for x in first_elems]
+                return f"np.vstack(({', '.join(parts)}))"
+    
+        # --------------------------------------------------
+        # Case 2: single row of identifiers -> horizontal concat
+        # MATLAB: C = [A, B];
+        # Python: C = np.hstack((A, B))
+        # --------------------------------------------------
+        if len(node.rows) == 1:
+            row = node.rows[0]
+    
+            # Horizontal concatenation of arrays
+            if all(isinstance(x, Identifier) for x in row):
+                parts = [self.visit(x) for x in row]
+                return f"np.hstack(({', '.join(parts)}))"
+    
+            # Single row of strings / identifiers -> string concatenation
+            if all(isinstance(x, String) or isinstance(x, Identifier) for x in row):
+                parts = [self.visit(x) for x in row]
+                return " + ".join(parts)
+    
+            # Single row of numbers -> 1D numeric array
+            if all(isinstance(x, Number) for x in row):
+                values = ", ".join(self.visit(x) for x in row)
+                return f"np.array([{values}])"
+    
+        # --------------------------------------------------
+        # Case 3: general numeric/mixed matrix -> 2D NumPy array
+        # --------------------------------------------------
         rows = []
         for row in node.rows:
-            values = ", ".join(
-                self.visit(x)
-                for x in row
-            )
-            rows.append(
-                f"[{values}]"
-            )
-        return (
-            "np.array(["
-            +
-            ", ".join(rows)
-            +
-            "])"
-        )
-
-    def visit_Range(self, node):
-        start = self.visit(node.start)
-        stop = self.visit(node.stop)
-        if node.step:
-            step = self.visit(node.step)
-            return f"np.arange({start}, {stop}+1, {step})"
-        else:
-            return f"np.arange({start}, {stop}+1)"
+            values = ", ".join(self.visit(x) for x in row)
+            rows.append(f"[{values}]")
+        return "np.array([" + ", ".join(rows) + "])"
 
     # ======================================================
     # Binary Operations
@@ -440,33 +541,12 @@ class Translator:
             "~=": "!=",
 
             # MATLAB matrix multiplication
-            "*": "@",
+            "*": "*",
 
             # power
             "^": "**",
         }
 
-        return mapping.get(
-            op,
-            op
-        )
-
-    def convert_operator(self, node):
-        op = node.operator
-        mapping = {
-            # element-wise
-            ".*": "*",
-            "./": "/",
-            ".^": "**",
-            # logical
-            "&&": "and",
-            "||": "or",
-            "~=": "!=",
-            # MATLAB matrix multiplication
-            "*": "@",
-            # power
-            "^": "**",
-        }
         return mapping.get(
             op,
             op
@@ -477,17 +557,30 @@ class Translator:
     # ======================================================
 
     def visit_Call(self, node):
-        name = self.visit(
-            node.function
-        )
-        args = ", ".join(
-            self.visit(x)
-            for x in node.arguments
-        )
-        return (
-            f"{self.map_function(name)}({args})"
-        )
-
+        # Plain identifier: map MATLAB builtin → Python name
+        if isinstance(node.function, Identifier):
+            name = node.function.name
+            func_name = self.map_function(name)
+        else:
+            name = None
+            func_name = self.visit(node.function)
+    
+        # Special-case array creation: zeros, ones, etc.
+        if name in {"zeros", "ones"}:
+            # NumPy expects shape as a single tuple if there are multiple dims
+            if len(node.arguments) == 1:
+                # e.g. zeros(n) -> np.zeros(n)
+                arg_str = self.visit(node.arguments[0])
+                return f"{func_name}({arg_str})"
+            else:
+                # e.g. zeros(1,10) -> np.zeros((1,10))
+                dims = ", ".join(self.visit(a) for a in node.arguments)
+                return f"{func_name}(({dims}))"
+    
+        # Default case: normal function call
+        args = ", ".join(self.visit(x) for x in node.arguments)
+        return f"{func_name}({args})"
+    
     def map_function(self, name):
         return translate_builtin(name)
 

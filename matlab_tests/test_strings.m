@@ -4,3 +4,4 @@ function test_strings()
     str2 = 'World';
     combined = [str1, ' ', str2];
 end
+

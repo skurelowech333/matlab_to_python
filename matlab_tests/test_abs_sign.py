@@ -4,5 +4,5 @@ import numpy as np
 
 def test_abs_sign():
     values = np.array([[-5, -2, 0, 2, 5]])
-    abs_values = abs[values-1]
-    sign_values = sign[values-1]
+    abs_values = np.abs(values)
+    sign_values = np.sign(values)
