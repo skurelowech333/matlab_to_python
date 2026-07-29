@@ -86,6 +86,7 @@ def _run_parsing(tokens, report):
         print("Parser errors:")
         for e in parser.errors:
             print(f"  line {e['line']}: {e['error']}")
+
     return tree
 
 
