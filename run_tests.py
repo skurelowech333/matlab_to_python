@@ -23,7 +23,14 @@ from matlab_tests import (
     test_expr_assign,
     test_counter_class,
     test_point_class,
-    test_cell_arrays
+    test_cell_arrays,
+    test_nested_loops,
+    test_switch,
+    test_multiple_calls,
+    test_lambda,
+    test_logical_not,
+    test_for_array,
+    test_for_step,
 )
 
 
@@ -308,6 +315,158 @@ class TestGeneratedPythonFromMatlab(unittest.TestCase):
         self.assertEqual(
             result, 14,
             msg=f"test_cell_arrays() returned {result}, expected 14",
+        )
+
+    # -----------------------------------------------------------------------
+    # test_nested_loops
+    # -----------------------------------------------------------------------
+
+    def test_nested_loops(self):
+        """
+        MATLAB:
+            test_nested_loops(3, 4) -> 60
+            sum of i*j for i=1..3, j=1..4
+        """
+        result = test_nested_loops.test_nested_loops(3, 4)
+        self.assertAlmostEqualWithTol(
+            result, 60.0,
+            msg=f"test_nested_loops(3, 4) returned {result}, expected 60",
+        )
+
+    # -----------------------------------------------------------------------
+    # test_switch
+    # -----------------------------------------------------------------------
+
+    def test_switch_case1(self):
+        result = test_switch.test_switch(1)
+        self.assertEqual(result, 'addition')
+
+    def test_switch_case3(self):
+        result = test_switch.test_switch(3)
+        self.assertEqual(result, 'multiplication')
+
+    def test_switch_otherwise(self):
+        result = test_switch.test_switch(99)
+        self.assertEqual(result, 'unknown')
+
+    # -----------------------------------------------------------------------
+    # test_try_catch
+    # -----------------------------------------------------------------------
+
+    def test_try_catch_normal(self):
+        """Division by non-zero returns the quotient."""
+        result = test_try_catch.test_try_catch(10, 2)
+        self.assertAlmostEqualWithTol(
+            result, 5.0,
+            msg=f"test_try_catch(10, 2) returned {result}, expected 5.0",
+        )
+
+    def test_try_catch_division_by_zero(self):
+        """Division by zero triggers catch block and returns 0."""
+        result = test_try_catch.test_try_catch(10, 0)
+        self.assertEqual(
+            result, 0,
+            msg=f"test_try_catch(10, 0) returned {result}, expected 0",
+        )
+
+    # -----------------------------------------------------------------------
+    # test_multiple_calls  (uses np.maximum / np.minimum)
+    # -----------------------------------------------------------------------
+
+    def test_multiple_calls(self):
+        """
+        MATLAB:
+            test_multiple_calls(3, 1, 2)
+            = max(3, max(1,2)) + min(3, min(1,2))
+            = max(3,2) + min(3,1) = 3 + 1 = 4
+        """
+        result = test_multiple_calls.test_multiple_calls(3, 1, 2)
+        self.assertAlmostEqualWithTol(
+            result, 4.0,
+            msg=f"test_multiple_calls(3, 1, 2) returned {result}, expected 4",
+        )
+
+    # -----------------------------------------------------------------------
+    # test_lambda  (anonymous function / closure)
+    # -----------------------------------------------------------------------
+
+    def test_lambda_basic(self):
+        """
+        MATLAB:
+            f = @(t) t * t + 1;
+            test_lambda(3) -> 10
+        """
+        result = test_lambda.test_lambda(3)
+        self.assertAlmostEqualWithTol(
+            result, 10.0,
+            msg=f"test_lambda(3) returned {result}, expected 10",
+        )
+
+    def test_lambda_zero(self):
+        result = test_lambda.test_lambda(0)
+        self.assertAlmostEqualWithTol(
+            result, 1.0,
+            msg=f"test_lambda(0) returned {result}, expected 1",
+        )
+
+    # -----------------------------------------------------------------------
+    # test_logical_not  (unary ~ operator)
+    # -----------------------------------------------------------------------
+
+    def test_logical_not_below_threshold(self):
+        """~(3 > 5) -> True -> 1"""
+        result = test_logical_not.test_logical_not(3)
+        self.assertEqual(
+            result, 1,
+            msg=f"test_logical_not(3) returned {result}, expected 1",
+        )
+
+    def test_logical_not_above_threshold(self):
+        """~(10 > 5) -> False -> 0"""
+        result = test_logical_not.test_logical_not(10)
+        self.assertEqual(
+            result, 0,
+            msg=f"test_logical_not(10) returned {result}, expected 0",
+        )
+
+    # -----------------------------------------------------------------------
+    # test_for_array  (for loop over a vector)
+    # -----------------------------------------------------------------------
+
+    def test_for_array_partial(self):
+        """Sum elements of [1,3,5,7,9] that are <= 5 -> 1+3+5 = 9"""
+        result = test_for_array.test_for_array(5)
+        self.assertAlmostEqualWithTol(
+            result, 9.0,
+            msg=f"test_for_array(5) returned {result}, expected 9",
+        )
+
+    def test_for_array_all(self):
+        """Sum all elements of [1,3,5,7,9] -> 25"""
+        result = test_for_array.test_for_array(9)
+        self.assertAlmostEqualWithTol(
+            result, 25.0,
+            msg=f"test_for_array(9) returned {result}, expected 25",
+        )
+
+    # -----------------------------------------------------------------------
+    # test_for_step  (for loop with step value)
+    # -----------------------------------------------------------------------
+
+    def test_for_step_ten(self):
+        """for i = 1:2:10 -> 1+3+5+7+9 = 25"""
+        result = test_for_step.test_for_step(10)
+        self.assertAlmostEqualWithTol(
+            result, 25.0,
+            msg=f"test_for_step(10) returned {result}, expected 25",
+        )
+
+    def test_for_step_five(self):
+        """for i = 1:2:5 -> 1+3+5 = 9"""
+        result = test_for_step.test_for_step(5)
+        self.assertAlmostEqualWithTol(
+            result, 9.0,
+            msg=f"test_for_step(5) returned {result}, expected 9",
         )
 
 if __name__ == "__main__":
